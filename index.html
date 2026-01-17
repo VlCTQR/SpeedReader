@@ -236,10 +236,14 @@
         </div>
 
         <!-- Desktop Grid Container (Initially hidden via class logic in JS or empty) -->
-        <div id="desktop-grid" class="hidden lg:grid grid-cols-2 gap-6 h-full">
-            <!-- Left Column: Reduced gap from 6 to 3 for tighter spacing -->
-            <div id="desktop-left" class="flex flex-col gap-3 justify-center h-full"></div>
-            <div id="desktop-right" class="flex flex-col items-center justify-center bg-gray-200 rounded-xl p-6 shadow-inner h-full"></div>
+        <div id="desktop-grid" class="hidden lg:grid grid-cols-2 gap-6 h-full min-h-0">
+            <!-- Left Column: Added justify-center and some padding to separate widgets -->
+            <div id="desktop-left" class="flex flex-col gap-4 justify-center h-full min-h-0 overflow-y-auto lg:pt-10">
+                <!-- Content will be injected here -->
+            </div>
+            <div id="desktop-right" class="flex flex-col items-center justify-center bg-gray-200 rounded-xl p-6 shadow-inner h-full min-h-0">
+                <!-- Map will be injected here -->
+            </div>
         </div>
 
         <!-- CONTENT GROUPS (These are moved around the DOM based on layout) -->
@@ -338,7 +342,7 @@
             wpm: 300,
             timeoutId: null,
             pageMap: [],
-            currentPage: 1,
+            currentPage: 0, // Changed from 1 to 0 to force initial render
             lastRenderedPage: 0,
             cachedPageImage: null,
             carouselIndex: 0,
@@ -444,7 +448,7 @@
                     state.lastRenderedPage = 0; 
                     if (state.words.length > 0) {
                         const curWord = state.words[state.wordIndex];
-                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
+                        renderPageThumbnail(curWord ? curWord.page : (state.currentPage || 1));
                     }
 
                 } else {
@@ -469,7 +473,7 @@
                     state.lastRenderedPage = 0;
                     if (state.words.length > 0) {
                         const curWord = state.words[state.wordIndex];
-                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
+                        renderPageThumbnail(curWord ? curWord.page : (state.currentPage || 1));
                     }
                 }
             }
@@ -720,6 +724,7 @@
                 // Reset state
                 state.words = [];
                 state.pageMap = [];
+                state.currentPage = 0; // Reset pagination state
                 
                 const buffer = await file.arrayBuffer();
                 state.pdfDoc = await pdfjsLib.getDocument({ data: buffer }).promise;
@@ -908,17 +913,23 @@
             updateProgress();
             
             const wObj = state.words[state.wordIndex];
-            if (wObj && wObj.page !== state.currentPage) {
-                // If in Mobile Carousel Mode, we must determine if map is visible
-                // For desktop, map is always visible
+            if (wObj) {
+                // Render page thumbnail if we are on Desktop OR in Map view on Mobile
+                // AND if the page has changed since last render
+                // OR if it's the very first load (currentPage is 0)
                 if (state.isDesktop || state.carouselIndex === 1) {
-                    renderPageThumbnail(wObj.page);
+                    if (wObj.page !== state.currentPage || state.currentPage === 0) {
+                        renderPageThumbnail(wObj.page);
+                    } else {
+                        drawHighlight();
+                    }
                 } else {
-                    state.currentPage = wObj.page;
-                    state.lastRenderedPage = 0; 
+                    // Just update internal state if map is hidden (mobile controls view)
+                    if (wObj.page !== state.currentPage) {
+                        state.currentPage = wObj.page;
+                        state.lastRenderedPage = 0; // Force update next time map is shown
+                    }
                 }
-            } else if (state.isDesktop || state.carouselIndex === 1) {
-                drawHighlight();
             }
         }
 
@@ -965,7 +976,7 @@
             renderRSVPWord(wObj.text);
             updateProgress();
 
-            // Render logic optimized for mode
+            // Desktop/Map View Update Logic
             if (state.isDesktop || state.carouselIndex === 1) {
                 if (wObj.page !== state.currentPage) renderPageThumbnail(wObj.page);
                 else drawHighlight();
@@ -995,6 +1006,19 @@
 
             state.wordIndex++;
             state.timeoutId = setTimeout(readerLoop, baseDelay * factor);
+        }
+
+        // IMPORTANT: updateDisplay function restored here
+        function updateDisplay() {
+            const wordObj = state.words[state.wordIndex];
+            if (!wordObj) return;
+            
+            if (wordObj.text === PARA_TOKEN) {
+                showParaBreak();
+            } else {
+                hideParaBreak();
+                renderRSVPWord(wordObj.text);
+            }
         }
 
         function showParaBreak() {
@@ -1114,5 +1138,3 @@
     </script>
 </body>
 </html>
-
-
