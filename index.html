@@ -96,7 +96,7 @@
         .focus-guide-bottom { bottom: 20px; }
 
         .word-container {
-            font-size: 34px; 
+            font-size: 34px; /* Base size */
             font-weight: 600;
             color: #1f2937;
             display: flex;
@@ -235,9 +235,9 @@
             </div>
         </div>
 
-        <!-- Desktop Grid Container (Initially hidden via class logic in JS or empty) -->
+        <!-- Desktop Grid Container -->
         <div id="desktop-grid" class="hidden lg:grid grid-cols-2 gap-6 h-full min-h-0">
-            <!-- Left Column: Removed justify-center and padding to align to top -->
+            <!-- Left Column: Top-aligned (no justify-center) with gap spacing -->
             <div id="desktop-left" class="flex flex-col gap-4 h-full min-h-0 overflow-y-auto">
                 <!-- Content will be injected here -->
             </div>
@@ -342,7 +342,7 @@
             wpm: 300,
             timeoutId: null,
             pageMap: [],
-            currentPage: 0, // Changed from 1 to 0 to force initial render
+            currentPage: 0, 
             lastRenderedPage: 0,
             cachedPageImage: null,
             carouselIndex: 0,
@@ -422,7 +422,6 @@
         function handleResize() {
             const isDesktopNow = window.innerWidth >= 1024;
             
-            // Only update DOM if state changes to prevent unnecessary re-renders
             if (isDesktopNow !== state.isDesktop || !state.layoutInitialized) {
                 state.isDesktop = isDesktopNow;
                 state.layoutInitialized = true;
@@ -434,7 +433,7 @@
                     
                     // Add Card Styling to Controls for Desktop
                     els.controlsCardInner.classList.add('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
-                    els.controlsGroup.classList.remove('h-full'); // Remove full height stretch on desktop
+                    els.controlsGroup.classList.remove('h-full'); 
 
                     // Move Elements to Desktop Grid
                     els.desktopLeft.appendChild(els.controlsGroup);
@@ -444,11 +443,10 @@
                     
                     els.desktopRight.appendChild(els.previewGroup);
                     
-                    // Force re-render of map for quality
                     state.lastRenderedPage = 0; 
                     if (state.words.length > 0) {
                         const curWord = state.words[state.wordIndex];
-                        renderPageThumbnail(curWord ? curWord.page : (state.currentPage || 1));
+                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
                     }
 
                 } else {
@@ -456,9 +454,8 @@
                     els.desktopGrid.classList.add('hidden');
                     els.mobileCarousel.classList.remove('hidden');
                     
-                    // Remove Card Styling from Controls for Mobile (Carousel handles container)
                     els.controlsCardInner.classList.remove('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
-                    els.controlsGroup.classList.add('h-full'); // Restore full height for carousel slide
+                    els.controlsGroup.classList.add('h-full'); 
 
                     // Restore Carousel
                     els.slide1.appendChild(els.controlsGroup);
@@ -469,18 +466,16 @@
                     els.mainContainer.appendChild(els.progressGroup);
                     els.mainContainer.appendChild(els.playbackGroup);
                     
-                    // Force re-render map (smaller)
                     state.lastRenderedPage = 0;
                     if (state.words.length > 0) {
                         const curWord = state.words[state.wordIndex];
-                        renderPageThumbnail(curWord ? curWord.page : (state.currentPage || 1));
+                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
                     }
                 }
             }
         }
 
         window.addEventListener('resize', () => {
-            // Simple debounce
             clearTimeout(state.resizeTimer);
             state.resizeTimer = setTimeout(handleResize, 100);
         });
@@ -724,7 +719,7 @@
                 // Reset state
                 state.words = [];
                 state.pageMap = [];
-                state.currentPage = 0; // Reset pagination state
+                state.currentPage = 0; 
                 
                 const buffer = await file.arrayBuffer();
                 state.pdfDoc = await pdfjsLib.getDocument({ data: buffer }).promise;
@@ -913,23 +908,17 @@
             updateProgress();
             
             const wObj = state.words[state.wordIndex];
-            if (wObj) {
-                // Render page thumbnail if we are on Desktop OR in Map view on Mobile
-                // AND if the page has changed since last render
-                // OR if it's the very first load (currentPage is 0)
+            if (wObj && wObj.page !== state.currentPage) {
+                // If in Mobile Carousel Mode, we must determine if map is visible
+                // For desktop, map is always visible
                 if (state.isDesktop || state.carouselIndex === 1) {
-                    if (wObj.page !== state.currentPage || state.currentPage === 0) {
-                        renderPageThumbnail(wObj.page);
-                    } else {
-                        drawHighlight();
-                    }
+                    renderPageThumbnail(wObj.page);
                 } else {
-                    // Just update internal state if map is hidden (mobile controls view)
-                    if (wObj.page !== state.currentPage) {
-                        state.currentPage = wObj.page;
-                        state.lastRenderedPage = 0; // Force update next time map is shown
-                    }
+                    state.currentPage = wObj.page;
+                    state.lastRenderedPage = 0; 
                 }
+            } else if (state.isDesktop || state.carouselIndex === 1) {
+                drawHighlight();
             }
         }
 
@@ -976,7 +965,7 @@
             renderRSVPWord(wObj.text);
             updateProgress();
 
-            // Desktop/Map View Update Logic
+            // Render logic optimized for mode
             if (state.isDesktop || state.carouselIndex === 1) {
                 if (wObj.page !== state.currentPage) renderPageThumbnail(wObj.page);
                 else drawHighlight();
@@ -1008,7 +997,6 @@
             state.timeoutId = setTimeout(readerLoop, baseDelay * factor);
         }
 
-        // IMPORTANT: updateDisplay function restored here
         function updateDisplay() {
             const wordObj = state.words[state.wordIndex];
             if (!wordObj) return;
@@ -1035,18 +1023,19 @@
         function renderRSVPWord(word) {
             const len = word.length;
             
-            // Dynamic Font Sizing based on Device
+            // Adaptive Font Sizing
             if (state.isDesktop) {
-                // Larger fonts for desktop
-                if (len > 12) {
-                    els.wordDisplay.style.fontSize = "40px"; 
-                } else if (len > 8) {
-                    els.wordDisplay.style.fontSize = "50px"; 
+                // Desktop: Relaxed threshold (allow words to be longer before shrinking)
+                // Use the same sizes (38/32/27) but trigger reductions later
+                if (len > 20) {
+                    els.wordDisplay.style.fontSize = "27px"; 
+                } else if (len > 15) {
+                    els.wordDisplay.style.fontSize = "32px"; 
                 } else {
-                    els.wordDisplay.style.fontSize = "60px"; 
+                    els.wordDisplay.style.fontSize = "38px"; 
                 }
             } else {
-                // Compact fonts for mobile (prevent overflow)
+                // Mobile: Stricter threshold (shrink sooner to fit narrow screens)
                 if (len > 12) {
                     els.wordDisplay.style.fontSize = "27px"; 
                 } else if (len > 8) {
