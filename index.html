@@ -96,7 +96,7 @@
         .focus-guide-bottom { bottom: 20px; }
 
         .word-container {
-            font-size: 40px; 
+            font-size: 34px; 
             font-weight: 600;
             color: #1f2937;
             display: flex;
@@ -117,7 +117,7 @@
             width: 70%; 
             white-space: nowrap; 
         }
-        .para-break { color: #9ca3af; font-size: 32px; } 
+        .para-break { color: #9ca3af; font-size: 27px; } 
 
         /* --- PREVIEW WIDGET --- */
         .page-preview-wrapper {
@@ -237,34 +237,38 @@
 
         <!-- Desktop Grid Container (Initially hidden via class logic in JS or empty) -->
         <div id="desktop-grid" class="hidden lg:grid grid-cols-2 gap-6 h-full">
-            <div id="desktop-left" class="flex flex-col gap-6 justify-center"></div>
+            <!-- Left Column: Reduced gap from 6 to 3 for tighter spacing -->
+            <div id="desktop-left" class="flex flex-col gap-3 justify-center h-full"></div>
             <div id="desktop-right" class="flex flex-col items-center justify-center bg-gray-200 rounded-xl p-6 shadow-inner h-full"></div>
         </div>
 
         <!-- CONTENT GROUPS (These are moved around the DOM based on layout) -->
         
         <!-- 1. Controls Group -->
-        <div id="controls-group" class="flex flex-col h-full justify-between gap-2 w-full">
-            <div>
-                <label class="text-xs font-bold text-gray-400 uppercase">Jump To</label>
-                <select id="chapter-select" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg p-2 mt-1">
-                    <option value="" disabled selected>Load PDF</option>
-                </select>
-            </div>
-            <div>
-                <div class="flex justify-between items-end mb-1">
-                    <label class="text-xs font-bold text-gray-400 uppercase">Speed</label>
-                    <span class="text-xs text-gray-500 font-mono"><span id="wpm-display">300</span> WPM</span>
+        <div id="controls-group" class="flex flex-col w-full shrink-0">
+            <!-- Inner wrapper acts as card on desktop, transparent on mobile (managed by JS classes or structure) -->
+            <div id="controls-card-inner" class="flex flex-col gap-2 w-full h-full justify-between">
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Jump To</label>
+                    <select id="chapter-select" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg p-2 mt-1">
+                        <option value="" disabled selected>Load PDF</option>
+                    </select>
                 </div>
-                <input type="range" id="wpm-slider" min="50" max="1000" step="10" value="300" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-            </div>
-            <div class="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 lg:hidden">
-                 <span>Words: <span id="total-words-mobile" class="text-gray-600 font-semibold">0</span></span>
-                 <span class="text-indigo-500 font-semibold flex items-center gap-1">Swipe for Map <i class="fa-solid fa-arrow-right"></i></span>
-            </div>
-            <!-- Desktop only stats -->
-            <div class="hidden lg:block text-xs text-gray-400 pt-1">
-                Total Words: <span id="total-words-desktop" class="text-gray-600 font-bold">0</span>
+                <div>
+                    <div class="flex justify-between items-end mb-1">
+                        <label class="text-xs font-bold text-gray-400 uppercase">Speed</label>
+                        <span class="text-xs text-gray-500 font-mono"><span id="wpm-display">300</span> WPM</span>
+                    </div>
+                    <input type="range" id="wpm-slider" min="50" max="1000" step="10" value="300" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                </div>
+                <div class="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 lg:hidden">
+                     <span>Words: <span id="total-words-mobile" class="text-gray-600 font-semibold">0</span></span>
+                     <span class="text-indigo-500 font-semibold flex items-center gap-1">Swipe for Map <i class="fa-solid fa-arrow-right"></i></span>
+                </div>
+                <!-- Desktop only stats -->
+                <div class="hidden lg:block text-xs text-gray-400 pt-1">
+                    Total Words: <span id="total-words-desktop" class="text-gray-600 font-bold">0</span>
+                </div>
             </div>
         </div>
 
@@ -355,6 +359,7 @@
 
             // Groups
             controlsGroup: document.getElementById('controls-group'),
+            controlsCardInner: document.getElementById('controls-card-inner'),
             previewGroup: document.getElementById('preview-group'),
             readerGroup: document.getElementById('reader-group'),
             progressGroup: document.getElementById('progress-group'),
@@ -423,6 +428,10 @@
                     els.desktopGrid.classList.remove('hidden');
                     els.mobileCarousel.classList.add('hidden');
                     
+                    // Add Card Styling to Controls for Desktop
+                    els.controlsCardInner.classList.add('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
+                    els.controlsGroup.classList.remove('h-full'); // Remove full height stretch on desktop
+
                     // Move Elements to Desktop Grid
                     els.desktopLeft.appendChild(els.controlsGroup);
                     els.desktopLeft.appendChild(els.readerGroup);
@@ -443,6 +452,10 @@
                     els.desktopGrid.classList.add('hidden');
                     els.mobileCarousel.classList.remove('hidden');
                     
+                    // Remove Card Styling from Controls for Mobile (Carousel handles container)
+                    els.controlsCardInner.classList.remove('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
+                    els.controlsGroup.classList.add('h-full'); // Restore full height for carousel slide
+
                     // Restore Carousel
                     els.slide1.appendChild(els.controlsGroup);
                     els.slide2.appendChild(els.previewGroup);
@@ -557,6 +570,7 @@
         // --- Modal Logic (Gesture Support) ---
         
         let mTouchStartX = 0;
+        let mTouchStartY = 0;
         let mStartDist = 0;
         let mStartScale = 1;
         let mScale = 1;
@@ -703,20 +717,34 @@
 
             els.loader.style.display = 'flex';
             try {
+                // Reset state
+                state.words = [];
+                state.pageMap = [];
+                
                 const buffer = await file.arrayBuffer();
                 state.pdfDoc = await pdfjsLib.getDocument({ data: buffer }).promise;
+                
+                // Attempt extraction
                 await extractContent(state.pdfDoc);
                 
-                els.progressSlider.max = state.words.length - 1;
-                const total = state.words.length.toLocaleString();
-                els.totalWordsMobile.textContent = total;
-                els.totalWordsDesktop.textContent = total;
+                // Success path (even if partial)
+                if (state.words.length > 0) {
+                    els.progressSlider.max = state.words.length - 1;
+                    const total = state.words.length.toLocaleString();
+                    els.totalWordsMobile.textContent = total;
+                    els.totalWordsDesktop.textContent = total;
+                    jumpToWord(0);
+                } else {
+                    throw new Error("No text found");
+                }
                 
-                jumpToWord(0);
                 els.loader.style.display = 'none';
             } catch (err) {
                 console.error(err);
-                alert('Parsing failed. Password protected?');
+                // Only alert if we found absolutely nothing
+                if (state.words.length === 0) {
+                    alert('Parsing failed. File might be password protected or purely scanned images.');
+                }
                 els.loader.style.display = 'none';
             }
         }
@@ -983,13 +1011,13 @@
         function renderRSVPWord(word) {
             const len = word.length;
             
-            // Refined Font Sizing (-20% and responsive check)
+            // Refined Font Sizing (Further reduced ~15%)
             if (len > 12) {
-                els.wordDisplay.style.fontSize = "32px"; 
+                els.wordDisplay.style.fontSize = "27px"; 
             } else if (len > 8) {
-                els.wordDisplay.style.fontSize = "38px"; 
+                els.wordDisplay.style.fontSize = "32px"; 
             } else {
-                els.wordDisplay.style.fontSize = "45px"; 
+                els.wordDisplay.style.fontSize = "38px"; 
             }
 
             // Focus Character Logic
@@ -1086,3 +1114,5 @@
     </script>
 </body>
 </html>
+
+
