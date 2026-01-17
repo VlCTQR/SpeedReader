@@ -282,9 +282,9 @@
         <div class="w-full reader-display shrink-0" id="reader-card">
             <div class="focus-guide-top"></div>
             <div id="word-display" class="word-container">
-                <span class="word-left" id="word-left">Ready</span>
-                <span class="focus-char" id="word-focus">?</span>
-                <span class="word-right" id="word-right"></span>
+                <span class="word-left" id="word-left">Load</span>
+                <span class="focus-char" id="word-focus">P</span>
+                <span class="word-right" id="word-right">DF</span>
             </div>
             <div id="para-indicator" class="hidden absolute top-4 right-4 text-gray-300 text-4xl">¶</div>
             <div class="focus-guide-bottom"></div>
@@ -640,133 +640,136 @@
                 if (i%5===0) els.loadStatus.textContent = `Page ${i}/${pdf.numPages}...`;
                 state.pageMap[i] = currentWordCount;
 
-                const page = await pdf.getPage(i);
-                const viewport = page.getViewport({ scale: 1.0 }); // Needed for context height
-                const content = await page.getTextContent();
-                let pageWords = [];
-                let lastY = -1;
-                let lastStr = "";
+                try {
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 1.0 }); // Needed for context height
+                    const content = await page.getTextContent();
+                    let pageWords = [];
+                    let lastY = -1;
+                    let lastStr = "";
 
-                content.items.forEach(item => {
-                    const str = item.str;
-                    if (!str.trim()) return;
-                    
-                    const tx = item.transform;
-                    const x = tx[4]; const y = tx[5];
-                    const w = item.width; const h = item.height || 12;
+                    content.items.forEach(item => {
+                        const str = item.str;
+                        if (!str.trim()) return;
+                        
+                        const tx = item.transform;
+                        const x = tx[4]; const y = tx[5];
+                        const w = item.width; const h = item.height || 12;
 
-                    // --- Page Number / Header / Footer Detection ---
-                    const isBottom = y < 60; // Approx 1 inch from bottom (72 DPI)
-                    const isTop = y > (viewport.height - 60); 
-                    // Matches "12", "- 12 -", "Page 12", "12/40", "iv"
-                    // Allow simple digit, "page" + digits, roman numerals, or "X / Y"
-                    const pageNumRegex = /^-?\s*(page\s*)?(\d+|[ivxlc]+)(\s*\/\s*\d+)?\s*-?$/i;
-                    
-                    if ((isBottom || isTop) && pageNumRegex.test(str.trim())) {
-                        return; // Skip likely page numbers
-                    }
-
-                    // --- Paragraph Break Detection ---
-                    if (lastY !== -1) {
-                         const dist = Math.abs(y - lastY);
-                         // Dynamic threshold + ensure prev word wasn't hyphenated
-                         if (dist > (h * 2.5) && !lastStr.trim().endsWith('-')) {
-                             pageWords.push({ text: PARA_TOKEN, page: i, x, y, w: 0, h: 0 });
-                         }
-                    }
-
-                    const words = str.split(/\s+/).filter(s => s.length > 0);
-                    if (words.length > 0) {
-                        const charW = w / str.length;
-                        let cx = x;
-                        words.forEach(txt => {
-                            const ww = txt.length * charW;
-                            pageWords.push({ text: txt, page: i, x: cx, y, w: ww, h });
-                            cx += ww + charW;
-                        });
-                    }
-                    lastY = y;
-                    lastStr = str;
-                });
-
-                // --- Punctuation Merge ---
-                const cleanWords = [];
-                for (let k = 0; k < pageWords.length; k++) {
-                    const cur = pageWords[k];
-                    if (cur.text === PARA_TOKEN) { cleanWords.push(cur); continue; }
-
-                    // Forward Merge (Open Quotes)
-                    // Matches “ ‘ ( [ { « and straight quotes if followed by alphanumeric
-                    const isOpenQuote = /^[“‘(\[{«]$/.test(cur.text) || 
-                                        ((cur.text === '"' || cur.text === "'") && k+1 < pageWords.length && /^[a-zA-Z0-9]/.test(pageWords[k+1].text));
-                    
-                    if (isOpenQuote && k + 1 < pageWords.length && pageWords[k+1].text !== PARA_TOKEN) {
-                         const next = pageWords[k+1];
-                         next.text = cur.text + next.text;
-                         next.x = cur.x; // Use quote start
-                         next.w += cur.w;
-                         continue; 
-                    }
-
-                    // Backward Merge (Trailing Punctuation)
-                    // Matches . , ; : ? ! … » ” ’ ) ] } and straight quotes (if not open)
-                    const isTrailing = /^[.,;:?!…»”’')\]}]+$/.test(cur.text) || cur.text === '"' || cur.text === "'";
-                    
-                    if (isTrailing && cleanWords.length > 0) {
-                         const prev = cleanWords[cleanWords.length - 1];
-                         if (prev.text !== PARA_TOKEN) {
-                             prev.text += cur.text;
-                             prev.w += cur.w;
-                             continue;
-                         }
-                    }
-                    cleanWords.push(cur);
-                }
-                
-                // Replace pageWords with clean version for hyphen step
-                pageWords = cleanWords;
-
-                // --- Merge Hyphens ---
-                const finalPageWords = [];
-                for (let j = 0; j < pageWords.length; j++) {
-                    let cur = pageWords[j];
-                    if (cur.text === PARA_TOKEN) { finalPageWords.push(cur); continue; }
-
-                    if (cur.text.endsWith('-') && j+1 < pageWords.length) {
-                        let next = pageWords[j+1];
-                        if (next.text !== PARA_TOKEN && /^[a-z]/.test(next.text)) {
-                            cur.text = cur.text.slice(0, -1) + next.text;
-                            cur.w += next.w;
-                            j++;
+                        // --- Page Number / Header / Footer Detection ---
+                        const isBottom = y < 60; // Approx 1 inch from bottom (72 DPI)
+                        const isTop = y > (viewport.height - 60); 
+                        const pageNumRegex = /^-?\s*(page\s*)?(\d+|[ivxlc]+)(\s*\/\s*\d+)?\s*-?$/i;
+                        
+                        if ((isBottom || isTop) && pageNumRegex.test(str.trim())) {
+                            return; 
                         }
+
+                        // --- Paragraph Break Detection ---
+                        if (lastY !== -1) {
+                             const dist = Math.abs(y - lastY);
+                             if (dist > (h * 2.5) && !lastStr.trim().endsWith('-')) {
+                                 pageWords.push({ text: PARA_TOKEN, page: i, x, y, w: 0, h: 0 });
+                             }
+                        }
+
+                        const words = str.split(/\s+/).filter(s => s.length > 0);
+                        if (words.length > 0) {
+                            const charW = w / str.length;
+                            let cx = x;
+                            words.forEach(txt => {
+                                const ww = txt.length * charW;
+                                pageWords.push({ text: txt, page: i, x: cx, y, w: ww, h });
+                                cx += ww + charW;
+                            });
+                        }
+                        lastY = y;
+                        lastStr = str;
+                    });
+
+                    // --- Punctuation Merge ---
+                    const cleanWords = [];
+                    for (let k = 0; k < pageWords.length; k++) {
+                        const cur = pageWords[k];
+                        if (cur.text === PARA_TOKEN) { cleanWords.push(cur); continue; }
+
+                        const isOpenQuote = /^[“‘(\[{«]$/.test(cur.text) || 
+                                            ((cur.text === '"' || cur.text === "'") && k+1 < pageWords.length && /^[a-zA-Z0-9]/.test(pageWords[k+1].text));
+                        
+                        if (isOpenQuote && k + 1 < pageWords.length && pageWords[k+1].text !== PARA_TOKEN) {
+                             const next = pageWords[k+1];
+                             next.text = cur.text + next.text;
+                             next.x = cur.x; 
+                             next.w += cur.w;
+                             continue; 
+                        }
+
+                        const isTrailing = /^[.,;:?!…»”’')\]}]+$/.test(cur.text) || cur.text === '"' || cur.text === "'";
+                        
+                        if (isTrailing && cleanWords.length > 0) {
+                             const prev = cleanWords[cleanWords.length - 1];
+                             if (prev.text !== PARA_TOKEN) {
+                                 prev.text += cur.text;
+                                 prev.w += cur.w;
+                                 continue;
+                             }
+                        }
+                        cleanWords.push(cur);
                     }
-                    finalPageWords.push(cur);
+                    pageWords = cleanWords;
+
+                    // --- Merge Hyphens ---
+                    const finalPageWords = [];
+                    for (let j = 0; j < pageWords.length; j++) {
+                        let cur = pageWords[j];
+                        if (cur.text === PARA_TOKEN) { finalPageWords.push(cur); continue; }
+
+                        if (cur.text.endsWith('-') && j+1 < pageWords.length) {
+                            let next = pageWords[j+1];
+                            if (next.text !== PARA_TOKEN && /^[a-z]/.test(next.text)) {
+                                cur.text = cur.text.slice(0, -1) + next.text;
+                                cur.w += next.w;
+                                j++;
+                            }
+                        }
+                        finalPageWords.push(cur);
+                    }
+                    
+                    state.words.push(...finalPageWords);
+                    currentWordCount += finalPageWords.length;
+
+                } catch (err) {
+                    console.warn(`Skipping page ${i} due to error`, err);
                 }
-                
-                state.words.push(...finalPageWords);
-                currentWordCount += finalPageWords.length;
             }
 
             // Outline
-            els.loadStatus.textContent = 'Building Outline...';
-            const outline = await pdf.getOutline();
-            if (outline) {
-                for (const o of outline) {
-                    try {
-                        let dest = o.dest;
-                        let pIdx = -1;
-                        if (typeof dest === 'string') pIdx = await pdf.getPageIndex(dest);
-                        else if (Array.isArray(dest)) pIdx = await pdf.getPageIndex(dest[0]);
-                        
-                        if (pIdx !== -1) {
-                            addOption(o.title, state.pageMap[pIdx + 1] || 0);
-                        }
-                    } catch(e){}
+            try {
+                els.loadStatus.textContent = 'Building Outline...';
+                const outline = await pdf.getOutline();
+                if (outline) {
+                    for (const o of outline) {
+                        try {
+                            let dest = o.dest;
+                            let pIdx = -1;
+                            if (typeof dest === 'string') pIdx = await pdf.getPageIndex(dest);
+                            else if (Array.isArray(dest)) pIdx = await pdf.getPageIndex(dest[0]);
+                            
+                            if (pIdx !== -1) {
+                                addOption(o.title, state.pageMap[pIdx + 1] || 0);
+                            }
+                        } catch(e){}
+                    }
                 }
+            } catch (err) {
+                console.log("Outline parsing failed (non-fatal)", err);
             }
+            
             if (els.chapterSelect.options.length === 0) {
                 for (let i = 1; i <= pdf.numPages; i++) {
-                    addOption(`Page ${i}`, state.pageMap[i]);
+                    if (state.pageMap[i] !== undefined) {
+                        addOption(`Page ${i}`, state.pageMap[i]);
+                    }
                 }
             }
         }
@@ -853,19 +856,15 @@
             else if (len < 4) factor = 0.8;
             
             // Punctuation Factors
-            // Check for Period (and optionally closing quotes)
             if (/\.['"”’)]*$/.test(wObj.text)) {
-                factor += 2.0; // Add pause equivalent to 2 words
+                factor += 2.0; 
             } 
-            // Check for ! or ? (Sentence endings)
             else if (/[?!]['"”’)]*$/.test(wObj.text)) {
                 factor += 2.0; 
             } 
-            // Check for semi-colons or colons
             else if (/[;:].*$/.test(wObj.text)) {
                 factor *= 1.5;
             } 
-            // Check for commas
             else if (/,.*$/.test(wObj.text)) {
                 factor *= 1.2;
             }
@@ -966,6 +965,5 @@
     </script>
 </body>
 </html>
-
 
 
