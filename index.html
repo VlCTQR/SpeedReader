@@ -237,8 +237,8 @@
 
         <!-- Desktop Grid Container (Initially hidden via class logic in JS or empty) -->
         <div id="desktop-grid" class="hidden lg:grid grid-cols-2 gap-6 h-full min-h-0">
-            <!-- Left Column: Added justify-center and some padding to separate widgets -->
-            <div id="desktop-left" class="flex flex-col gap-4 justify-center h-full min-h-0 overflow-y-auto lg:pt-10">
+            <!-- Left Column: Removed justify-center and padding to align to top -->
+            <div id="desktop-left" class="flex flex-col gap-4 h-full min-h-0 overflow-y-auto">
                 <!-- Content will be injected here -->
             </div>
             <div id="desktop-right" class="flex flex-col items-center justify-center bg-gray-200 rounded-xl p-6 shadow-inner h-full min-h-0">
@@ -1035,13 +1035,25 @@
         function renderRSVPWord(word) {
             const len = word.length;
             
-            // Refined Font Sizing (Further reduced ~15%)
-            if (len > 12) {
-                els.wordDisplay.style.fontSize = "27px"; 
-            } else if (len > 8) {
-                els.wordDisplay.style.fontSize = "32px"; 
+            // Dynamic Font Sizing based on Device
+            if (state.isDesktop) {
+                // Larger fonts for desktop
+                if (len > 12) {
+                    els.wordDisplay.style.fontSize = "40px"; 
+                } else if (len > 8) {
+                    els.wordDisplay.style.fontSize = "50px"; 
+                } else {
+                    els.wordDisplay.style.fontSize = "60px"; 
+                }
             } else {
-                els.wordDisplay.style.fontSize = "38px"; 
+                // Compact fonts for mobile (prevent overflow)
+                if (len > 12) {
+                    els.wordDisplay.style.fontSize = "27px"; 
+                } else if (len > 8) {
+                    els.wordDisplay.style.fontSize = "32px"; 
+                } else {
+                    els.wordDisplay.style.fontSize = "38px"; 
+                }
             }
 
             // Focus Character Logic
