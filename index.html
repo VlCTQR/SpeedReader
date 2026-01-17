@@ -32,17 +32,17 @@
             box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             border: 1px solid #f3f4f6;
             position: relative;
-            touch-action: pan-y; /* Allow vertical scroll, handle horizontal manually */
+            touch-action: pan-y; 
         }
 
         .carousel-track {
             display: flex;
-            width: 200%; /* 2 Slides */
+            width: 200%; 
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
         }
 
         .carousel-slide {
-            width: 50%; /* Each slide takes half of the 200% width (so 100% of viewport) */
+            width: 50%; 
             padding: 1rem;
             flex-shrink: 0;
             display: flex;
@@ -71,7 +71,7 @@
         /* --- READER DISPLAY --- */
         .reader-display {
             font-family: 'Roboto Mono', monospace;
-            height: 240px; /* Slightly reduced height to fit buttons */
+            height: 240px; 
             display: flex;
             align-items: center;
             justify-content: center;
@@ -81,11 +81,12 @@
             position: relative;
             user-select: none;
             overflow: hidden; 
+            padding-right: 1rem; 
         }
 
         .focus-guide-top, .focus-guide-bottom {
             position: absolute;
-            left: 50%;
+            left: 30%; 
             transform: translateX(-50%);
             width: 2px;
             height: 10px;
@@ -95,7 +96,7 @@
         .focus-guide-bottom { bottom: 20px; }
 
         .word-container {
-            font-size: 50px; 
+            font-size: 40px; 
             font-weight: 600;
             color: #1f2937;
             display: flex;
@@ -105,14 +106,23 @@
         }
 
         .focus-char { color: #ef4444; flex-shrink: 0; }
-        .word-left { text-align: right; width: 50%; white-space: nowrap; }
-        .word-right { text-align: left; width: 50%; white-space: nowrap; }
-        .para-break { color: #9ca3af; font-size: 40px; }
+        
+        .word-left { 
+            text-align: right; 
+            width: 30%; 
+            white-space: nowrap; 
+        }
+        .word-right { 
+            text-align: left; 
+            width: 70%; 
+            white-space: nowrap; 
+        }
+        .para-break { color: #9ca3af; font-size: 32px; } 
 
         /* --- PREVIEW WIDGET --- */
         .page-preview-wrapper {
             width: 100%;
-            height: 120px;
+            /* Fixed height for mobile, overridden by flex-grow on desktop via JS/Classes */
             background: #e5e7eb;
             border-radius: 0.5rem;
             overflow: hidden;
@@ -138,7 +148,6 @@
             background: rgba(0, 0, 0, 0.9);
             backdrop-filter: blur(5px);
             align-items: center; justify-content: center;
-            /* Disable default touch actions to handle gestures manually */
             touch-action: none; 
             overflow: hidden;
         }
@@ -155,14 +164,11 @@
         .modal-prev { left: 20px; }
         .modal-next { right: 20px; }
 
-        /* Close button z-index fix */
-        #close-modal {
-            z-index: 100;
-        }
+        #close-modal { z-index: 100; }
         
         #modal-canvas {
             transform-origin: center center;
-            transition: transform 0.1s ease-out; /* Smooth pinch */
+            transition: transform 0.1s ease-out; 
         }
 
         /* Loader */
@@ -184,23 +190,12 @@
 
     <!-- Full Screen Page Modal -->
     <div id="page-modal">
-        <!-- Close Button: High Z-index, large touch target -->
         <button class="absolute top-6 right-6 text-white text-5xl font-light hover:text-gray-300 active:text-gray-400 drop-shadow-md leading-none w-12 h-12 flex items-center justify-center" id="close-modal">&times;</button>
-        
-        <!-- Page Number Indicator -->
-        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white px-4 py-1.5 rounded-full text-sm font-mono z-50 pointer-events-none" id="modal-page-num">
-            Page -
-        </div>
-
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white px-4 py-1.5 rounded-full text-sm font-mono z-50 pointer-events-none" id="modal-page-num">Page -</div>
         <button class="modal-nav-btn modal-prev" id="modal-prev-btn"><i class="fa-solid fa-chevron-left"></i></button>
-        
-        <!-- Image Container -->
         <div class="relative w-full h-full p-2 flex items-center justify-center pointer-events-none">
-            <!-- pointer-events-none on container ensures clicks pass through to modal bg for closing/swiping if needed, 
-                 but we want swipes on the modal itself. -->
             <canvas id="modal-canvas" class="max-w-full max-h-full object-contain shadow-2xl bg-white pointer-events-auto"></canvas>
         </div>
-
         <button class="modal-nav-btn modal-next" id="modal-next-btn"><i class="fa-solid fa-chevron-right"></i></button>
     </div>
 
@@ -219,79 +214,90 @@
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-grow flex flex-col w-full max-w-lg mx-auto p-4 gap-4 overflow-y-auto">
-
-        <!-- Top Widget: Swipeable Carousel -->
-        <div class="carousel-viewport" id="top-widget-carousel">
+    <!-- Main Content Area -->
+    <main id="main-container" class="flex-grow flex flex-col w-full max-w-7xl mx-auto p-4 gap-4 overflow-y-auto lg:overflow-hidden">
+        
+        <!-- Mobile Carousel Structure (Default) -->
+        <div id="mobile-carousel-wrapper" class="carousel-viewport lg:hidden shrink-0">
             <div class="carousel-track" id="carousel-track">
-                
-                <!-- Slide 1: Controls -->
-                <div class="carousel-slide">
-                    <div class="flex flex-col h-full justify-between gap-2">
-                        <!-- Jump To -->
-                        <div>
-                            <label class="text-xs font-bold text-gray-400 uppercase">Jump To</label>
-                            <select id="chapter-select" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg p-2 mt-1">
-                                <option value="" disabled selected>Load PDF</option>
-                            </select>
-                        </div>
-                        
-                        <!-- Speed Control -->
-                        <div>
-                            <div class="flex justify-between items-end mb-1">
-                                <label class="text-xs font-bold text-gray-400 uppercase">Speed</label>
-                                <span class="text-xs text-gray-500 font-mono"><span id="wpm-display">300</span> WPM</span>
-                            </div>
-                            <input type="range" id="wpm-slider" min="50" max="1000" step="10" value="300" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                        </div>
-
-                        <!-- Mini Stats -->
-                        <div class="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-100">
-                             <span>Words: <span id="total-words" class="text-gray-600 font-semibold">0</span></span>
-                             <span class="text-indigo-500 font-semibold flex items-center gap-1">Swipe for Map <i class="fa-solid fa-arrow-right"></i></span>
-                        </div>
-                    </div>
+                <!-- Slide 1 Container -->
+                <div class="carousel-slide" id="slide-1">
+                    <!-- Controls Group moved here via JS or default -->
                 </div>
-
-                <!-- Slide 2: Page Preview -->
-                <div class="carousel-slide">
-                    <div class="flex flex-col h-full items-center justify-center">
-                        <div class="w-full flex justify-between items-center mb-1 px-1">
-                            <label class="text-xs font-bold text-gray-400 uppercase">Current Page Location</label>
-                            <span class="text-xs font-mono text-gray-500">Page <span id="current-page-num">-</span></span>
-                        </div>
-                        
-                        <div class="page-preview-wrapper" id="preview-container">
-                            <canvas id="preview-canvas" class="h-full object-contain"></canvas>
-                            <div class="expand-hint"><i class="fa-solid fa-expand text-2xl drop-shadow-md"></i></div>
-                        </div>
-                    </div>
+                <!-- Slide 2 Container -->
+                <div class="carousel-slide" id="slide-2">
+                    <!-- Preview Group moved here via JS or default -->
                 </div>
-
             </div>
-            
-            <!-- Dots -->
             <div class="carousel-dots">
                 <div class="dot active" id="dot-0"></div>
                 <div class="dot" id="dot-1"></div>
             </div>
         </div>
 
-        <!-- Reader Card (Bottom) - NOT Swipeable -->
-        <div class="w-full reader-display shrink-0" id="reader-card">
-            <div class="focus-guide-top"></div>
-            <div id="word-display" class="word-container">
-                <span class="word-left" id="word-left">Load</span>
-                <span class="focus-char" id="word-focus">P</span>
-                <span class="word-right" id="word-right">DF</span>
-            </div>
-            <div id="para-indicator" class="hidden absolute top-4 right-4 text-gray-300 text-4xl">¶</div>
-            <div class="focus-guide-bottom"></div>
+        <!-- Desktop Grid Container (Initially hidden via class logic in JS or empty) -->
+        <div id="desktop-grid" class="hidden lg:grid grid-cols-2 gap-6 h-full">
+            <div id="desktop-left" class="flex flex-col gap-6 justify-center"></div>
+            <div id="desktop-right" class="flex flex-col items-center justify-center bg-gray-200 rounded-xl p-6 shadow-inner h-full"></div>
         </div>
 
-        <!-- Progress Bar -->
-        <div class="w-full shrink-0">
+        <!-- CONTENT GROUPS (These are moved around the DOM based on layout) -->
+        
+        <!-- 1. Controls Group -->
+        <div id="controls-group" class="flex flex-col h-full justify-between gap-2 w-full">
+            <div>
+                <label class="text-xs font-bold text-gray-400 uppercase">Jump To</label>
+                <select id="chapter-select" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg p-2 mt-1">
+                    <option value="" disabled selected>Load PDF</option>
+                </select>
+            </div>
+            <div>
+                <div class="flex justify-between items-end mb-1">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Speed</label>
+                    <span class="text-xs text-gray-500 font-mono"><span id="wpm-display">300</span> WPM</span>
+                </div>
+                <input type="range" id="wpm-slider" min="50" max="1000" step="10" value="300" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+            </div>
+            <div class="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 lg:hidden">
+                 <span>Words: <span id="total-words-mobile" class="text-gray-600 font-semibold">0</span></span>
+                 <span class="text-indigo-500 font-semibold flex items-center gap-1">Swipe for Map <i class="fa-solid fa-arrow-right"></i></span>
+            </div>
+            <!-- Desktop only stats -->
+            <div class="hidden lg:block text-xs text-gray-400 pt-1">
+                Total Words: <span id="total-words-desktop" class="text-gray-600 font-bold">0</span>
+            </div>
+        </div>
+
+        <!-- 2. Preview Group -->
+        <div id="preview-group" class="flex flex-col h-full items-center justify-center w-full">
+            <div class="w-full flex justify-between items-center mb-1 px-1 lg:mb-2">
+                <label class="text-xs font-bold text-gray-400 uppercase">Current Page Location</label>
+                <span class="text-xs font-mono text-gray-500">Page <span id="current-page-num">-</span></span>
+            </div>
+            
+            <!-- Wrapper height is dynamic: fixed on mobile, flex on desktop -->
+            <div class="page-preview-wrapper h-[120px] lg:h-full lg:w-full lg:flex-grow" id="preview-container">
+                <canvas id="preview-canvas" class="h-full w-full object-contain"></canvas>
+                <div class="expand-hint"><i class="fa-solid fa-expand text-2xl drop-shadow-md"></i></div>
+            </div>
+        </div>
+
+        <!-- 3. Reader Card -->
+        <div id="reader-group" class="w-full shrink-0">
+            <div class="w-full reader-display" id="reader-card">
+                <div class="focus-guide-top"></div>
+                <div id="word-display" class="word-container">
+                    <span class="word-left" id="word-left">Load</span>
+                    <span class="focus-char" id="word-focus">P</span>
+                    <span class="word-right" id="word-right">DF</span>
+                </div>
+                <div id="para-indicator" class="hidden absolute top-4 right-4 text-gray-300 text-4xl">¶</div>
+                <div class="focus-guide-bottom"></div>
+            </div>
+        </div>
+
+        <!-- 4. Progress Bar -->
+        <div id="progress-group" class="w-full shrink-0">
             <div class="flex justify-between text-xs text-gray-500 font-mono px-1 mb-1">
                 <span id="progress-text">0 / 0</span>
                 <span id="time-remaining">0m left</span>
@@ -299,8 +305,8 @@
             <input type="range" id="progress-slider" min="0" max="100" value="0" class="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-indigo-600">
         </div>
 
-        <!-- Playback Controls -->
-        <div class="flex gap-8 items-center justify-center pb-2 shrink-0">
+        <!-- 5. Playback Controls -->
+        <div id="playback-group" class="flex gap-8 items-center justify-center pb-2 shrink-0">
             <button id="btn-restart" class="text-gray-400 hover:text-gray-600 active:scale-95 transition p-2" title="Restart">
                 <i class="fa-solid fa-rotate-left text-2xl"></i>
             </button>
@@ -331,12 +337,30 @@
             currentPage: 1,
             lastRenderedPage: 0,
             cachedPageImage: null,
-            carouselIndex: 0 // 0 = Controls, 1 = Preview
+            carouselIndex: 0,
+            isDesktop: false
         };
 
         const PARA_TOKEN = "___PARA___";
 
         const els = {
+            // Layout Containers
+            slide1: document.getElementById('slide-1'),
+            slide2: document.getElementById('slide-2'),
+            mainContainer: document.getElementById('main-container'),
+            desktopLeft: document.getElementById('desktop-left'),
+            desktopRight: document.getElementById('desktop-right'),
+            mobileCarousel: document.getElementById('mobile-carousel-wrapper'),
+            desktopGrid: document.getElementById('desktop-grid'),
+
+            // Groups
+            controlsGroup: document.getElementById('controls-group'),
+            previewGroup: document.getElementById('preview-group'),
+            readerGroup: document.getElementById('reader-group'),
+            progressGroup: document.getElementById('progress-group'),
+            playbackGroup: document.getElementById('playback-group'),
+
+            // UI Elements
             fileInput: document.getElementById('file-upload'),
             loader: document.getElementById('loader'),
             loadStatus: document.getElementById('loading-status'),
@@ -345,7 +369,6 @@
             wpmDisplay: document.getElementById('wpm-display'),
             
             // Carousel
-            carouselWidget: document.getElementById('top-widget-carousel'),
             carouselTrack: document.getElementById('carousel-track'),
             dot0: document.getElementById('dot-0'),
             dot1: document.getElementById('dot-1'),
@@ -361,7 +384,8 @@
             progressText: document.getElementById('progress-text'),
             timeRemaining: document.getElementById('time-remaining'),
             progressSlider: document.getElementById('progress-slider'),
-            totalWords: document.getElementById('total-words'),
+            totalWordsMobile: document.getElementById('total-words-mobile'),
+            totalWordsDesktop: document.getElementById('total-words-desktop'),
             
             // Controls
             btnPlayPause: document.getElementById('btn-play-pause'),
@@ -383,6 +407,70 @@
             modalNext: document.getElementById('modal-next-btn'),
             modalPageNum: document.getElementById('modal-page-num')
         };
+
+        // --- Layout Management ---
+        
+        function handleResize() {
+            const isDesktopNow = window.innerWidth >= 1024;
+            
+            // Only update DOM if state changes to prevent unnecessary re-renders
+            if (isDesktopNow !== state.isDesktop || !state.layoutInitialized) {
+                state.isDesktop = isDesktopNow;
+                state.layoutInitialized = true;
+                
+                if (state.isDesktop) {
+                    // Switch to Desktop
+                    els.desktopGrid.classList.remove('hidden');
+                    els.mobileCarousel.classList.add('hidden');
+                    
+                    // Move Elements to Desktop Grid
+                    els.desktopLeft.appendChild(els.controlsGroup);
+                    els.desktopLeft.appendChild(els.readerGroup);
+                    els.desktopLeft.appendChild(els.progressGroup);
+                    els.desktopLeft.appendChild(els.playbackGroup);
+                    
+                    els.desktopRight.appendChild(els.previewGroup);
+                    
+                    // Force re-render of map for quality
+                    state.lastRenderedPage = 0; 
+                    if (state.words.length > 0) {
+                        const curWord = state.words[state.wordIndex];
+                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
+                    }
+
+                } else {
+                    // Switch to Mobile
+                    els.desktopGrid.classList.add('hidden');
+                    els.mobileCarousel.classList.remove('hidden');
+                    
+                    // Restore Carousel
+                    els.slide1.appendChild(els.controlsGroup);
+                    els.slide2.appendChild(els.previewGroup);
+                    
+                    // Restore Main Flow
+                    els.mainContainer.appendChild(els.readerGroup);
+                    els.mainContainer.appendChild(els.progressGroup);
+                    els.mainContainer.appendChild(els.playbackGroup);
+                    
+                    // Force re-render map (smaller)
+                    state.lastRenderedPage = 0;
+                    if (state.words.length > 0) {
+                        const curWord = state.words[state.wordIndex];
+                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
+                    }
+                }
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            // Simple debounce
+            clearTimeout(state.resizeTimer);
+            state.resizeTimer = setTimeout(handleResize, 100);
+        });
+        
+        // Initial Layout Check
+        handleResize();
+
 
         // --- Event Listeners ---
         els.fileInput.addEventListener('change', handleFileUpload);
@@ -420,25 +508,26 @@
         let cStartX = 0;
         let cEndX = 0;
 
-        els.carouselWidget.addEventListener('touchstart', e => {
+        els.mobileCarousel.addEventListener('touchstart', e => {
             cStartX = e.changedTouches[0].screenX;
         }, {passive: true});
 
-        els.carouselWidget.addEventListener('touchend', e => {
+        els.mobileCarousel.addEventListener('touchend', e => {
             cEndX = e.changedTouches[0].screenX;
             handleCarouselSwipe();
         }, {passive: true});
 
-        els.carouselWidget.addEventListener('mousedown', e => {
+        els.mobileCarousel.addEventListener('mousedown', e => {
             cStartX = e.screenX;
         });
         
-        els.carouselWidget.addEventListener('mouseup', e => {
+        els.mobileCarousel.addEventListener('mouseup', e => {
             cEndX = e.screenX;
             handleCarouselSwipe();
         });
 
         function handleCarouselSwipe() {
+            if (state.isDesktop) return; // Disable swipe logic on desktop
             const diff = cEndX - cStartX;
             if (Math.abs(diff) > 50) {
                 if (diff < 0) {
@@ -468,7 +557,6 @@
         // --- Modal Logic (Gesture Support) ---
         
         let mTouchStartX = 0;
-        let mTouchStartY = 0;
         let mStartDist = 0;
         let mStartScale = 1;
         let mScale = 1;
@@ -572,12 +660,13 @@
             
             if (!state.words || state.words.length === 0) return;
 
-            // Sync Main Reader with Modal Page if changed
             const currentWordObj = state.words[state.wordIndex];
             const currentWordPage = currentWordObj ? currentWordObj.page : 1;
             
             if (state.currentPage !== currentWordPage) {
                 const newIndex = state.pageMap[state.currentPage] || 0;
+                // Force rerender via logic
+                state.lastRenderedPage = 0; 
                 renderPageThumbnail(state.currentPage);
                 jumpToWord(newIndex);
             }
@@ -619,7 +708,10 @@
                 await extractContent(state.pdfDoc);
                 
                 els.progressSlider.max = state.words.length - 1;
-                els.totalWords.textContent = state.words.length.toLocaleString();
+                const total = state.words.length.toLocaleString();
+                els.totalWordsMobile.textContent = total;
+                els.totalWordsDesktop.textContent = total;
+                
                 jumpToWord(0);
                 els.loader.style.display = 'none';
             } catch (err) {
@@ -789,12 +881,15 @@
             
             const wObj = state.words[state.wordIndex];
             if (wObj && wObj.page !== state.currentPage) {
-                if (state.carouselIndex === 1) renderPageThumbnail(wObj.page);
-                else {
+                // If in Mobile Carousel Mode, we must determine if map is visible
+                // For desktop, map is always visible
+                if (state.isDesktop || state.carouselIndex === 1) {
+                    renderPageThumbnail(wObj.page);
+                } else {
                     state.currentPage = wObj.page;
                     state.lastRenderedPage = 0; 
                 }
-            } else if (state.carouselIndex === 1) {
+            } else if (state.isDesktop || state.carouselIndex === 1) {
                 drawHighlight();
             }
         }
@@ -842,7 +937,8 @@
             renderRSVPWord(wObj.text);
             updateProgress();
 
-            if (state.carouselIndex === 1) {
+            // Render logic optimized for mode
+            if (state.isDesktop || state.carouselIndex === 1) {
                 if (wObj.page !== state.currentPage) renderPageThumbnail(wObj.page);
                 else drawHighlight();
             } else if (wObj.page !== state.currentPage) {
@@ -886,11 +982,27 @@
 
         function renderRSVPWord(word) {
             const len = word.length;
-            if (len > 12) els.wordDisplay.style.fontSize = "40px";
-            else if (len > 8) els.wordDisplay.style.fontSize = "45px";
-            else els.wordDisplay.style.fontSize = "55px";
+            
+            // Refined Font Sizing (-20% and responsive check)
+            if (len > 12) {
+                els.wordDisplay.style.fontSize = "32px"; 
+            } else if (len > 8) {
+                els.wordDisplay.style.fontSize = "38px"; 
+            } else {
+                els.wordDisplay.style.fontSize = "45px"; 
+            }
 
-            const focusIdx = Math.floor((len - 1) / 2);
+            // Focus Character Logic
+            let focusIdx = 1; 
+            
+            if (len === 1) {
+                focusIdx = 0; 
+            } else if (len >= 7) {
+                focusIdx = 2; 
+            }
+
+            if (focusIdx >= len) focusIdx = len - 1;
+
             els.wordLeft.textContent = word.substring(0, focusIdx);
             els.wordFocus.textContent = word.charAt(focusIdx);
             els.wordRight.textContent = word.substring(focusIdx + 1);
@@ -912,16 +1024,25 @@
         
         async function renderPageThumbnail(pageNum) {
             if (!state.pdfDoc) return;
-            if (pageNum === state.lastRenderedPage && state.cachedPageImage) {
+            
+            // Check if we need to re-render due to resolution change (Mobile vs Desktop)
+            // Or just a simple page flip
+            const targetScale = state.isDesktop ? 1.5 : 0.5;
+            
+            // If page is same AND scale hasn't drastically changed (simple heuristic), just highlight
+            // We'll store lastRenderedScale to be sure
+            if (pageNum === state.lastRenderedPage && state.cachedPageImage && state.lastRenderedScale === targetScale) {
                 drawHighlight(); return;
             }
 
             state.currentPage = pageNum;
             state.lastRenderedPage = pageNum;
+            state.lastRenderedScale = targetScale;
+            
             els.currentPageNum.textContent = pageNum;
 
             const page = await state.pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 0.5 });
+            const viewport = page.getViewport({ scale: targetScale });
 
             els.previewCanvas.height = viewport.height;
             els.previewCanvas.width = viewport.width;
@@ -965,5 +1086,3 @@
     </script>
 </body>
 </html>
-
-
