@@ -918,9 +918,9 @@
             const len = word.length;
             
             if (state.isDesktop) {
-                // Desktop: 24px if len >= 16, 27px if len >= 12, else 32px
-                if (len >= 16) els.wordDisplay.style.fontSize = "24px";
-                else if (len >= 12) els.wordDisplay.style.fontSize = "27px";
+                // Desktop: 24px if len >= 20, 27px if len >= 16, else 32px
+                if (len >= 20) els.wordDisplay.style.fontSize = "24px";
+                else if (len >= 16) els.wordDisplay.style.fontSize = "27px";
                 else els.wordDisplay.style.fontSize = "32px";
             } else {
                 // Mobile: 24px if len > 12, 27px if len > 8, else 32px
