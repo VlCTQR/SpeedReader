@@ -916,9 +916,19 @@
         function hideParaBreak() { els.paraIndicator.classList.add('hidden'); }
         function renderRSVPWord(word) {
             const len = word.length;
-            if (len > 12) els.wordDisplay.style.fontSize = "27px"; 
-            else if (len > 8) els.wordDisplay.style.fontSize = "32px"; 
-            else els.wordDisplay.style.fontSize = "38px"; 
+            
+            if (state.isDesktop) {
+                // Desktop: 24px if len >= 16, 27px if len >= 12, else 32px
+                if (len >= 16) els.wordDisplay.style.fontSize = "24px";
+                else if (len >= 12) els.wordDisplay.style.fontSize = "27px";
+                else els.wordDisplay.style.fontSize = "32px";
+            } else {
+                // Mobile: 24px if len > 12, 27px if len > 8, else 32px
+                if (len > 12) els.wordDisplay.style.fontSize = "24px"; 
+                else if (len > 8) els.wordDisplay.style.fontSize = "27px"; 
+                else els.wordDisplay.style.fontSize = "32px";
+            }
+
             let focusIdx = 1; 
             if (len === 1) focusIdx = 0; else if (len >= 7) focusIdx = 2;
             if (focusIdx >= len) focusIdx = len - 1;
