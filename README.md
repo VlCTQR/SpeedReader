@@ -2,6 +2,8 @@
 
 A lightweight, single-file HTML5 speed reading tool designed to help you consume PDFs and text content faster using **RSVP** (Rapid Serial Visual Presentation). It runs entirely in your browser without backend servers.
 
+![Desktop view](images/desktop.png)
+![Mobile view](images/mobile.png)
 
 ## ✨ Features
 
