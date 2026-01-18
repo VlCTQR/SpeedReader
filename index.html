@@ -83,6 +83,7 @@
             position: relative;
             overflow: hidden; 
             padding-right: 1rem; 
+            touch-action: pan-y; /* Allow vertical scroll, capture horizontal */
         }
 
         .focus-guide-top, .focus-guide-bottom {
@@ -125,15 +126,17 @@
             align-items: center;
             position: relative;
             cursor: pointer;
-            z-index: 10; /* Ensure clickability */
+            z-index: 10; 
         }
         
+        /* Updated Expand Hint to ensure clickability */
         .expand-hint {
             position: absolute; inset: 0;
             background: rgba(0,0,0,0.1);
             display: flex; align-items: center; justify-content: center;
             color: white; opacity: 0;
-            transition: opacity 0.2s; pointer-events: none;
+            transition: opacity 0.2s; 
+            pointer-events: none; /* Icon allows click through to wrapper */
         }
         .page-preview-wrapper:hover .expand-hint { opacity: 1; }
 
@@ -224,7 +227,7 @@
                 <div class="carousel-slide" id="slide-1"></div> <!-- Controls -->
                 <div class="carousel-slide" id="slide-2"></div> <!-- Preview/Map -->
             </div>
-            <div class="carousel-dots">
+            <div class="carousel-dots" id="carousel-dots-container">
                 <div class="dot active" id="dot-0"></div>
                 <div class="dot" id="dot-1"></div>
             </div>
@@ -256,7 +259,7 @@
                 </div>
                 <div class="flex justify-between text-xs text-gray-400 pt-1 border-t border-gray-100 lg:hidden">
                      <span>Words: <span id="total-words-mobile" class="text-gray-600 font-semibold">0</span></span>
-                     <span class="text-indigo-500 font-semibold flex items-center gap-1">Swipe for Map <i class="fa-solid fa-arrow-right"></i></span>
+                     <span id="swipe-map-hint" class="text-indigo-500 font-semibold flex items-center gap-1">Swipe for Map <i class="fa-solid fa-arrow-right"></i></span>
                 </div>
                 <div class="hidden lg:block text-xs text-gray-400 pt-1">
                     Total Words: <span id="total-words-desktop" class="text-gray-600 font-bold">0</span>
@@ -314,6 +317,10 @@
                     </div>
                     <div id="para-indicator" class="hidden absolute top-4 right-4 text-gray-300 text-4xl">¶</div>
                     <div class="focus-guide-bottom"></div>
+                    <!-- Swipe Hint for Mobile Text Mode -->
+                    <div id="swipe-edit-hint" class="hidden absolute bottom-2 w-full text-center text-xs text-gray-300 font-medium tracking-wide pointer-events-none lg:hidden">
+                        Swipe Right to Edit <i class="fa-solid fa-pen ml-1"></i>
+                    </div>
                 </div>
 
                 <!-- Mobile Input Overlay (Shown when empty on mobile) -->
@@ -393,7 +400,9 @@
             // Groups
             controlsGroup: document.getElementById('controls-group'),
             controlsCardInner: document.getElementById('controls-card-inner'),
-            jumpToContainer: document.getElementById('jump-to-container'), // Added
+            jumpToContainer: document.getElementById('jump-to-container'), 
+            swipeMapHint: document.getElementById('swipe-map-hint'), // Added
+            swipeEditHint: document.getElementById('swipe-edit-hint'), // Added
             previewGroup: document.getElementById('preview-group'),
             readerGroup: document.getElementById('reader-group'),
             progressGroup: document.getElementById('progress-group'),
@@ -442,6 +451,7 @@
             currentPageNum: document.getElementById('current-page-num'),
             // Carousel Nav
             carouselTrack: document.getElementById('carousel-track'),
+            carouselDots: document.getElementById('carousel-dots-container'), // Added
             dot0: document.getElementById('dot-0'),
             dot1: document.getElementById('dot-1'),
             // Modal
@@ -492,8 +502,11 @@
             els.mobileInputOverlay.classList.add('hidden');
             els.rsvpLayer.classList.remove('hidden');
             
-            // Default: Show Jump To
+            // Default: Show Jump To & Map Hint, Hide Edit Hint, Show Dots
             els.jumpToContainer.classList.remove('hidden');
+            if (els.swipeMapHint) els.swipeMapHint.classList.remove('hidden');
+            if (els.swipeEditHint) els.swipeEditHint.classList.add('hidden');
+            if (els.carouselDots) els.carouselDots.classList.remove('hidden');
 
             if (state.mode === 'empty') {
                 if (state.isDesktop) {
@@ -510,6 +523,13 @@
             } else if (state.mode === 'text') {
                 // Hide Jump To for text mode
                 els.jumpToContainer.classList.add('hidden');
+                
+                // Toggle Hints for Mobile Text Mode
+                if (els.swipeMapHint) els.swipeMapHint.classList.add('hidden');
+                if (!state.isDesktop && els.swipeEditHint) els.swipeEditHint.classList.remove('hidden');
+                
+                // Hide Dots since carousel is locked
+                if (els.carouselDots) els.carouselDots.classList.add('hidden');
 
                 if (state.isDesktop) {
                     els.textViewContainer.classList.remove('hidden');
@@ -544,15 +564,20 @@
         els.btnResetAll.addEventListener('click', resetState);
         els.fileInput.addEventListener('change', handleFileUpload);
         
-        // Text Edit Updates (Desktop)
+        // Text Edit Updates (Desktop) - FIXED: Don't re-render spans on input to preserve cursor
         els.textViewContainer.addEventListener('input', () => {
-            // Live update? Or wait for "Play"?
-            // Ideally wait for play or pause. For simplicity, we re-parse when play is hit?
-            // Actually, to update word count live, let's debounce parse.
+            // Update internal state only
             clearTimeout(state.textDebounce);
             state.textDebounce = setTimeout(() => {
                 processRawText(els.textViewContainer.innerText, true);
             }, 1000);
+        });
+
+        // Re-render spans on blur to enable highlighting
+        els.textViewContainer.addEventListener('blur', () => {
+            if (state.words.length > 0) {
+                renderTextSpans(state.words.map(w => w.text));
+            }
         });
 
         // --- Data Processing ---
@@ -568,7 +593,10 @@
             
             // 2. Setup Highlighting (Only useful for Desktop/TextView)
             if (state.isDesktop || els.textViewContainer.offsetParent !== null) {
-                renderTextSpans(tokens);
+                // FIXED: Only render spans if NOT currently typing (focus) or if forced
+                if (!isLiveUpdate || document.activeElement !== els.textViewContainer) {
+                    renderTextSpans(tokens);
+                }
             }
 
             // 3. Update Stats
@@ -787,9 +815,9 @@
             const old = els.textViewContainer.querySelector('.text-highlight');
             if (old) old.classList.remove('text-highlight');
             
-            // Add new
-            const span = state.wordSpans[idx];
-            if (span) {
+            // Add new - FIXED: Check bounds safely
+            if (state.wordSpans && state.wordSpans[idx]) {
+                const span = state.wordSpans[idx];
                 span.classList.add('text-highlight');
                 // Scroll into view
                 const containerRect = els.textViewContainer.getBoundingClientRect();
@@ -1047,9 +1075,12 @@
         let mIsZooming = false;
         let mIsPanning = false;
 
+        // Modal Gestures
         els.modal.addEventListener('touchstart', handleModalTouchStart, {passive: false});
         els.modal.addEventListener('touchmove', handleModalTouchMove, {passive: false});
         els.modal.addEventListener('touchend', handleModalTouchEnd);
+
+        // ... (Modal touch functions remain the same) ...
 
         function handleModalTouchStart(e) {
             if (e.touches.length === 2) {
@@ -1094,9 +1125,7 @@
         function resetZoom() { mScale = 1; mPanX = 0; mPanY = 0; updateModalTransform(); }
 
         document.addEventListener('keydown', (e) => {
-            // Check if user is typing in an input field or contenteditable div
             if (e.target.matches('input, textarea') || e.target.isContentEditable) return;
-
             if (state.words.length === 0) return;
             if (els.modal.classList.contains('active')) {
                 if (e.code === 'ArrowLeft') showModalPage(state.currentPage - 1);
@@ -1109,11 +1138,14 @@
             else if (e.code === 'ArrowRight') jumpToWord(state.wordIndex + 10);
         });
 
-        // Carousel Touch
+        // --- Top Widget (Mobile Carousel) Logic ---
         let cStartX = 0, cEndX = 0;
         els.mobileCarousel.addEventListener('touchstart', e => cStartX = e.changedTouches[0].screenX, {passive: true});
         els.mobileCarousel.addEventListener('touchend', e => {
             cEndX = e.changedTouches[0].screenX;
+            // Lock top widget if in text mode
+            if (state.mode === 'text') return;
+
             if (!state.isDesktop && Math.abs(cEndX - cStartX) > 50) {
                 state.carouselIndex = (cEndX - cStartX < 0) ? 1 : 0;
                 updateCarousel();
@@ -1121,6 +1153,9 @@
         }, {passive: true});
 
         function updateCarousel() {
+            // Force Index 0 if in text mode on mobile to show controls
+            if (state.mode === 'text' && !state.isDesktop) state.carouselIndex = 0;
+
             const offset = state.carouselIndex === 0 ? '0%' : '-50%';
             els.carouselTrack.style.transform = `translateX(${offset})`;
             
@@ -1131,10 +1166,43 @@
                 els.dot0.classList.remove('active');
                 els.dot1.classList.add('active');
                 const wordObj = state.words[state.wordIndex];
-                if (wordObj) renderPageThumbnail(wordObj.page);
+                if (wordObj && state.mode === 'pdf') renderPageThumbnail(wordObj.page);
             }
-            // FIX: Ensure visibility is updated so the hidden container is shown
             updateViewsForMode();
+        }
+
+        // --- Bottom Widget (Reader Card) Logic ---
+        // Swipe to Edit (Text Mode Only)
+        let rStartX = 0;
+        const readerCard = document.getElementById('reader-card'); // Use ID directly
+        
+        readerCard.addEventListener('touchstart', e => {
+            rStartX = e.changedTouches[0].screenX;
+        }, {passive: true});
+
+        readerCard.addEventListener('touchend', e => {
+            const rEndX = e.changedTouches[0].screenX;
+            
+            // Only active on Mobile and in Text Mode
+            if (state.isDesktop || state.mode !== 'text') return;
+
+            const diff = rEndX - rStartX;
+            if (Math.abs(diff) > 50) {
+                if (diff > 0) {
+                    // Swipe Right: Show Editor
+                    showMobileTextEditor();
+                } else {
+                    // Swipe Left: Start Reading
+                    const text = els.mobileTextInput.value;
+                    if (text.trim()) processRawText(text);
+                }
+            }
+        }, {passive: true});
+
+        function showMobileTextEditor() {
+            stopReader();
+            els.rsvpLayer.classList.add('hidden');
+            els.mobileInputOverlay.classList.remove('hidden');
         }
 
     </script>
