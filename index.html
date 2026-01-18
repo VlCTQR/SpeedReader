@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PDF Speed Reader</title>
+    <title>Speed Reader</title>
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PDF.js -->
@@ -79,7 +81,7 @@
             border-radius: 1rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
             position: relative;
-            user-select: none;
+            /* user-select: none;  Removed to allow text editing in mobile input mode */
             overflow: hidden; 
             padding-right: 1rem; 
         }
@@ -91,38 +93,31 @@
             width: 2px;
             height: 10px;
             background-color: #e5e7eb;
+            pointer-events: none;
         }
         .focus-guide-top { top: 20px; }
         .focus-guide-bottom { bottom: 20px; }
 
         .word-container {
-            font-size: 34px; /* Base size */
+            font-size: 34px; 
             font-weight: 600;
             color: #1f2937;
             display: flex;
             align-items: center;
             width: 100%;
             transition: font-size 0.1s ease-out; 
+            pointer-events: none; /* Let text area behind handle clicks if present */
         }
 
         .focus-char { color: #ef4444; flex-shrink: 0; }
         
-        .word-left { 
-            text-align: right; 
-            width: 30%; 
-            white-space: nowrap; 
-        }
-        .word-right { 
-            text-align: left; 
-            width: 70%; 
-            white-space: nowrap; 
-        }
+        .word-left { text-align: right; width: 30%; white-space: nowrap; }
+        .word-right { text-align: left; width: 70%; white-space: nowrap; }
         .para-break { color: #9ca3af; font-size: 27px; } 
 
         /* --- PREVIEW WIDGET --- */
         .page-preview-wrapper {
             width: 100%;
-            /* Fixed height for mobile, overridden by flex-grow on desktop via JS/Classes */
             background: #e5e7eb;
             border-radius: 0.5rem;
             overflow: hidden;
@@ -132,14 +127,12 @@
             position: relative;
             cursor: pointer;
         }
-        .expand-hint {
-            position: absolute; inset: 0;
-            background: rgba(0,0,0,0.1);
-            display: flex; align-items: center; justify-content: center;
-            color: white; opacity: 0;
-            transition: opacity 0.2s; pointer-events: none;
+        
+        /* Highlight span in Text Mode */
+        .text-highlight {
+            background-color: rgba(239, 68, 68, 0.3); /* Red-500 opacity */
+            border-bottom: 2px solid #ef4444;
         }
-        .page-preview-wrapper:hover .expand-hint { opacity: 1; }
 
         /* --- MODAL --- */
         #page-modal {
@@ -165,11 +158,7 @@
         .modal-next { right: 20px; }
 
         #close-modal { z-index: 100; }
-        
-        #modal-canvas {
-            transform-origin: center center;
-            transition: transform 0.1s ease-out; 
-        }
+        #modal-canvas { transform-origin: center center; transition: transform 0.1s ease-out; }
 
         /* Loader */
         #loader {
@@ -184,11 +173,11 @@
     <!-- Loading Overlay -->
     <div id="loader">
         <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-indigo-600 mb-4"></div>
-        <h2 class="text-lg font-semibold text-gray-700">Processing PDF...</h2>
+        <h2 class="text-lg font-semibold text-gray-700">Processing...</h2>
         <p id="loading-status" class="text-sm text-gray-500 mt-2">Initializing...</p>
     </div>
 
-    <!-- Full Screen Page Modal -->
+    <!-- Full Screen Page Modal (PDF Only) -->
     <div id="page-modal">
         <button class="absolute top-6 right-6 text-white text-5xl font-light hover:text-gray-300 active:text-gray-400 drop-shadow-md leading-none w-12 h-12 flex items-center justify-center" id="close-modal">&times;</button>
         <div class="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/50 backdrop-blur-sm text-white px-4 py-1.5 rounded-full text-sm font-mono z-50 pointer-events-none" id="modal-page-num">Page -</div>
@@ -199,6 +188,9 @@
         <button class="modal-nav-btn modal-next" id="modal-next-btn"><i class="fa-solid fa-chevron-right"></i></button>
     </div>
 
+    <!-- Hidden File Input -->
+    <input id="file-upload" type="file" accept="application/pdf" class="hidden">
+
     <!-- Header -->
     <header class="bg-white shadow-sm p-3 flex justify-between items-center z-10 shrink-0 h-16">
         <div class="flex items-center gap-2">
@@ -206,28 +198,22 @@
             <h1 class="text-lg font-bold tracking-tight text-gray-800">Speed<span class="text-indigo-600">Reader</span></h1>
         </div>
         <div>
-            <label for="file-upload" class="cursor-pointer bg-indigo-600 active:bg-indigo-800 text-white px-3 py-2 rounded-lg text-sm shadow flex items-center gap-2">
-                <i class="fa-solid fa-file-pdf"></i>
-                <span>Open PDF</span>
-            </label>
-            <input id="file-upload" type="file" accept="application/pdf" class="hidden">
+            <!-- Reset / Load New Button -->
+            <button id="btn-reset-all" class="cursor-pointer text-gray-500 hover:text-indigo-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition">
+                <i class="fa-solid fa-folder-open"></i>
+                <span>Load New</span>
+            </button>
         </div>
     </header>
 
     <!-- Main Content Area -->
     <main id="main-container" class="flex-grow flex flex-col w-full max-w-7xl mx-auto p-4 gap-4 overflow-y-auto lg:overflow-hidden">
         
-        <!-- Mobile Carousel Structure (Default) -->
+        <!-- Mobile Carousel Structure -->
         <div id="mobile-carousel-wrapper" class="carousel-viewport lg:hidden shrink-0">
             <div class="carousel-track" id="carousel-track">
-                <!-- Slide 1 Container -->
-                <div class="carousel-slide" id="slide-1">
-                    <!-- Controls Group moved here via JS or default -->
-                </div>
-                <!-- Slide 2 Container -->
-                <div class="carousel-slide" id="slide-2">
-                    <!-- Preview Group moved here via JS or default -->
-                </div>
+                <div class="carousel-slide" id="slide-1"></div> <!-- Controls -->
+                <div class="carousel-slide" id="slide-2"></div> <!-- Preview/Map -->
             </div>
             <div class="carousel-dots">
                 <div class="dot active" id="dot-0"></div>
@@ -237,25 +223,19 @@
 
         <!-- Desktop Grid Container -->
         <div id="desktop-grid" class="hidden lg:grid grid-cols-2 gap-6 h-full min-h-0">
-            <!-- Left Column: Top-aligned (no justify-center) with gap spacing -->
-            <div id="desktop-left" class="flex flex-col gap-4 h-full min-h-0 overflow-y-auto">
-                <!-- Content will be injected here -->
-            </div>
-            <div id="desktop-right" class="flex flex-col items-center justify-center bg-gray-200 rounded-xl p-6 shadow-inner h-full min-h-0">
-                <!-- Map will be injected here -->
-            </div>
+            <div id="desktop-left" class="flex flex-col gap-4 h-full min-h-0 overflow-y-auto"></div>
+            <div id="desktop-right" class="flex flex-col items-center justify-center bg-gray-200 rounded-xl p-6 shadow-inner h-full min-h-0 relative overflow-hidden"></div>
         </div>
 
-        <!-- CONTENT GROUPS (These are moved around the DOM based on layout) -->
+        <!-- CONTENT GROUPS -->
         
         <!-- 1. Controls Group -->
         <div id="controls-group" class="flex flex-col w-full shrink-0">
-            <!-- Inner wrapper acts as card on desktop, transparent on mobile (managed by JS classes or structure) -->
             <div id="controls-card-inner" class="flex flex-col gap-2 w-full h-full justify-between">
-                <div>
+                <div id="jump-to-container">
                     <label class="text-xs font-bold text-gray-400 uppercase">Jump To</label>
                     <select id="chapter-select" class="w-full bg-gray-50 border border-gray-200 text-gray-700 text-sm rounded-lg p-2 mt-1">
-                        <option value="" disabled selected>Load PDF</option>
+                        <option value="" disabled selected>Load Content First</option>
                     </select>
                 </div>
                 <div>
@@ -269,38 +249,77 @@
                      <span>Words: <span id="total-words-mobile" class="text-gray-600 font-semibold">0</span></span>
                      <span class="text-indigo-500 font-semibold flex items-center gap-1">Swipe for Map <i class="fa-solid fa-arrow-right"></i></span>
                 </div>
-                <!-- Desktop only stats -->
                 <div class="hidden lg:block text-xs text-gray-400 pt-1">
                     Total Words: <span id="total-words-desktop" class="text-gray-600 font-bold">0</span>
                 </div>
             </div>
         </div>
 
-        <!-- 2. Preview Group -->
-        <div id="preview-group" class="flex flex-col h-full items-center justify-center w-full">
-            <div class="w-full flex justify-between items-center mb-1 px-1 lg:mb-2">
-                <label class="text-xs font-bold text-gray-400 uppercase">Current Page Location</label>
-                <span class="text-xs font-mono text-gray-500">Page <span id="current-page-num">-</span></span>
-            </div>
+        <!-- 2. Preview Group (Right Panel Content) -->
+        <div id="preview-group" class="flex flex-col h-full items-center justify-center w-full h-full">
             
-            <!-- Wrapper height is dynamic: fixed on mobile, flex on desktop -->
-            <div class="page-preview-wrapper h-[120px] lg:h-full lg:w-full lg:flex-grow" id="preview-container">
-                <canvas id="preview-canvas" class="h-full w-full object-contain"></canvas>
-                <div class="expand-hint"><i class="fa-solid fa-expand text-2xl drop-shadow-md"></i></div>
+            <!-- STATE: EMPTY / SELECTION -->
+            <div id="source-selection" class="flex flex-col gap-4 items-center justify-center w-full h-full">
+                <button id="btn-select-pdf" class="flex flex-col items-center justify-center bg-white hover:bg-indigo-50 border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-xl p-8 w-64 transition group">
+                    <i class="fa-solid fa-file-pdf text-4xl text-indigo-500 mb-3 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-gray-700">Upload PDF</span>
+                    <span class="text-xs text-gray-400 mt-1">Standard Format</span>
+                </button>
+                <div class="text-gray-400 font-mono text-xs">- OR -</div>
+                <button id="btn-select-text" class="flex flex-col items-center justify-center bg-white hover:bg-emerald-50 border-2 border-dashed border-emerald-200 hover:border-emerald-400 rounded-xl p-8 w-64 transition group">
+                    <i class="fa-solid fa-align-left text-4xl text-emerald-500 mb-3 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-gray-700">Paste Text</span>
+                    <span class="text-xs text-gray-400 mt-1">Direct Input</span>
+                </button>
+            </div>
+
+            <!-- STATE: PDF VIEW -->
+            <div id="pdf-view-container" class="hidden flex flex-col w-full h-full">
+                <div class="w-full flex justify-between items-center mb-1 px-1 lg:mb-2 shrink-0">
+                    <label class="text-xs font-bold text-gray-400 uppercase">Current Page Location</label>
+                    <span class="text-xs font-mono text-gray-500">Page <span id="current-page-num">-</span></span>
+                </div>
+                <div class="page-preview-wrapper h-[120px] lg:h-full lg:w-full lg:flex-grow" id="preview-container">
+                    <canvas id="preview-canvas" class="h-full w-full object-contain"></canvas>
+                    <div class="expand-hint"><i class="fa-solid fa-expand text-2xl drop-shadow-md"></i></div>
+                </div>
+            </div>
+
+            <!-- STATE: TEXT EDIT VIEW -->
+            <div id="text-view-container" class="hidden w-full h-full bg-white rounded-lg shadow-inner p-4 overflow-y-auto border border-gray-200 font-mono text-sm leading-relaxed whitespace-pre-wrap outline-none focus:ring-2 ring-indigo-100" contenteditable="true">
+                <!-- Text content goes here -->
             </div>
         </div>
 
         <!-- 3. Reader Card -->
         <div id="reader-group" class="w-full shrink-0">
-            <div class="w-full reader-display" id="reader-card">
-                <div class="focus-guide-top"></div>
-                <div id="word-display" class="word-container">
-                    <span class="word-left" id="word-left">Load</span>
-                    <span class="focus-char" id="word-focus">P</span>
-                    <span class="word-right" id="word-right">DF</span>
+            <div class="w-full reader-display relative" id="reader-card">
+                
+                <!-- RSVP Display Layer -->
+                <div id="rsvp-layer" class="w-full h-full absolute inset-0 flex items-center justify-center">
+                    <div class="focus-guide-top"></div>
+                    <div id="word-display" class="word-container">
+                        <span class="word-left" id="word-left">Load</span>
+                        <span class="focus-char" id="word-focus">P</span>
+                        <span class="word-right" id="word-right">DF</span>
+                    </div>
+                    <div id="para-indicator" class="hidden absolute top-4 right-4 text-gray-300 text-4xl">¶</div>
+                    <div class="focus-guide-bottom"></div>
                 </div>
-                <div id="para-indicator" class="hidden absolute top-4 right-4 text-gray-300 text-4xl">¶</div>
-                <div class="focus-guide-bottom"></div>
+
+                <!-- Mobile Input Overlay (Shown when empty on mobile) -->
+                <div id="mobile-input-overlay" class="hidden absolute inset-0 bg-white z-20 flex flex-col p-4">
+                    <textarea id="mobile-text-input" class="w-full flex-grow p-3 bg-gray-50 rounded border border-gray-200 resize-none text-sm font-mono focus:outline-none focus:border-indigo-500" placeholder="Paste your text here..."></textarea>
+                    <div class="flex gap-2 mt-2 shrink-0">
+                        <button id="btn-mobile-upload-pdf" class="flex-1 bg-gray-100 text-gray-600 py-2 rounded font-semibold text-sm hover:bg-gray-200">
+                            <i class="fa-solid fa-file-pdf mr-1"></i> PDF
+                        </button>
+                        <button id="btn-mobile-start-text" class="flex-1 bg-indigo-600 text-white py-2 rounded font-semibold text-sm hover:bg-indigo-700">
+                            Start Reading
+                        </button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -335,14 +354,16 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
         const state = {
+            mode: 'empty', // 'empty', 'pdf', 'text'
             pdfDoc: null,
-            words: [],
+            words: [],          // Array of {text, page, index}
+            wordSpans: [],      // Array of span elements for Text Mode highlighting
             wordIndex: 0,
             isPlaying: false,
             wpm: 300,
             timeoutId: null,
             pageMap: [],
-            currentPage: 0, 
+            currentPage: 0,
             lastRenderedPage: 0,
             cachedPageImage: null,
             carouselIndex: 0,
@@ -352,62 +373,68 @@
         const PARA_TOKEN = "___PARA___";
 
         const els = {
-            // Layout Containers
-            slide1: document.getElementById('slide-1'),
-            slide2: document.getElementById('slide-2'),
             mainContainer: document.getElementById('main-container'),
+            // Layout
             desktopLeft: document.getElementById('desktop-left'),
             desktopRight: document.getElementById('desktop-right'),
             mobileCarousel: document.getElementById('mobile-carousel-wrapper'),
             desktopGrid: document.getElementById('desktop-grid'),
-
+            slide1: document.getElementById('slide-1'),
+            slide2: document.getElementById('slide-2'),
             // Groups
             controlsGroup: document.getElementById('controls-group'),
             controlsCardInner: document.getElementById('controls-card-inner'),
+            jumpToContainer: document.getElementById('jump-to-container'), // Added
             previewGroup: document.getElementById('preview-group'),
             readerGroup: document.getElementById('reader-group'),
             progressGroup: document.getElementById('progress-group'),
             playbackGroup: document.getElementById('playback-group'),
-
-            // UI Elements
+            // Selection UI
+            sourceSelection: document.getElementById('source-selection'),
+            btnSelectPdf: document.getElementById('btn-select-pdf'),
+            btnSelectText: document.getElementById('btn-select-text'),
+            btnResetAll: document.getElementById('btn-reset-all'),
+            // Inputs
             fileInput: document.getElementById('file-upload'),
+            textViewContainer: document.getElementById('text-view-container'),
+            pdfViewContainer: document.getElementById('pdf-view-container'),
+            mobileInputOverlay: document.getElementById('mobile-input-overlay'),
+            mobileTextInput: document.getElementById('mobile-text-input'),
+            btnMobileUploadPdf: document.getElementById('btn-mobile-upload-pdf'),
+            btnMobileStartText: document.getElementById('btn-mobile-start-text'),
+            
+            // Common
             loader: document.getElementById('loader'),
             loadStatus: document.getElementById('loading-status'),
             chapterSelect: document.getElementById('chapter-select'),
             wpmSlider: document.getElementById('wpm-slider'),
             wpmDisplay: document.getElementById('wpm-display'),
-            
-            // Carousel
-            carouselTrack: document.getElementById('carousel-track'),
-            dot0: document.getElementById('dot-0'),
-            dot1: document.getElementById('dot-1'),
-
             // Reader
+            rsvpLayer: document.getElementById('rsvp-layer'),
             wordDisplay: document.getElementById('word-display'),
             wordLeft: document.getElementById('word-left'),
             wordFocus: document.getElementById('word-focus'),
             wordRight: document.getElementById('word-right'),
             paraIndicator: document.getElementById('para-indicator'),
-            
-            // Progress
+            // Controls
             progressText: document.getElementById('progress-text'),
             timeRemaining: document.getElementById('time-remaining'),
             progressSlider: document.getElementById('progress-slider'),
             totalWordsMobile: document.getElementById('total-words-mobile'),
             totalWordsDesktop: document.getElementById('total-words-desktop'),
-            
-            // Controls
             btnPlayPause: document.getElementById('btn-play-pause'),
             iconPlay: document.getElementById('icon-play'),
             iconPause: document.getElementById('icon-pause'),
             btnRestart: document.getElementById('btn-restart'),
             btnRewind: document.getElementById('btn-rewind'),
-            
             // Preview
             previewCanvas: document.getElementById('preview-canvas'),
             previewContainer: document.getElementById('preview-container'),
             currentPageNum: document.getElementById('current-page-num'),
-            
+            // Carousel Nav
+            carouselTrack: document.getElementById('carousel-track'),
+            dot0: document.getElementById('dot-0'),
+            dot1: document.getElementById('dot-1'),
             // Modal
             modal: document.getElementById('page-modal'),
             modalCanvas: document.getElementById('modal-canvas'),
@@ -417,297 +444,155 @@
             modalPageNum: document.getElementById('modal-page-num')
         };
 
-        // --- Layout Management ---
-        
-        function handleResize() {
-            const isDesktopNow = window.innerWidth >= 1024;
-            
-            if (isDesktopNow !== state.isDesktop || !state.layoutInitialized) {
-                state.isDesktop = isDesktopNow;
-                state.layoutInitialized = true;
-                
-                if (state.isDesktop) {
-                    // Switch to Desktop
-                    els.desktopGrid.classList.remove('hidden');
-                    els.mobileCarousel.classList.add('hidden');
-                    
-                    // Add Card Styling to Controls for Desktop
-                    els.controlsCardInner.classList.add('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
-                    els.controlsGroup.classList.remove('h-full'); 
+        // --- Initialization & Layout ---
 
-                    // Move Elements to Desktop Grid
-                    els.desktopLeft.appendChild(els.controlsGroup);
-                    els.desktopLeft.appendChild(els.readerGroup);
-                    els.desktopLeft.appendChild(els.progressGroup);
-                    els.desktopLeft.appendChild(els.playbackGroup);
-                    
-                    els.desktopRight.appendChild(els.previewGroup);
-                    
-                    state.lastRenderedPage = 0; 
-                    if (state.words.length > 0) {
-                        const curWord = state.words[state.wordIndex];
-                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
-                    }
-
-                } else {
-                    // Switch to Mobile
-                    els.desktopGrid.classList.add('hidden');
-                    els.mobileCarousel.classList.remove('hidden');
-                    
-                    els.controlsCardInner.classList.remove('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
-                    els.controlsGroup.classList.add('h-full'); 
-
-                    // Restore Carousel
-                    els.slide1.appendChild(els.controlsGroup);
-                    els.slide2.appendChild(els.previewGroup);
-                    
-                    // Restore Main Flow
-                    els.mainContainer.appendChild(els.readerGroup);
-                    els.mainContainer.appendChild(els.progressGroup);
-                    els.mainContainer.appendChild(els.playbackGroup);
-                    
-                    state.lastRenderedPage = 0;
-                    if (state.words.length > 0) {
-                        const curWord = state.words[state.wordIndex];
-                        renderPageThumbnail(curWord ? curWord.page : state.currentPage);
-                    }
-                }
-            }
+        function init() {
+            handleResize();
+            resetState();
         }
 
-        window.addEventListener('resize', () => {
-            clearTimeout(state.resizeTimer);
-            state.resizeTimer = setTimeout(handleResize, 100);
-        });
-        
-        // Initial Layout Check
-        handleResize();
-
-
-        // --- Event Listeners ---
-        els.fileInput.addEventListener('change', handleFileUpload);
-        els.btnPlayPause.addEventListener('click', togglePlay);
-        els.btnRestart.addEventListener('click', () => jumpToWord(0));
-        els.btnRewind.addEventListener('click', () => jumpToWord(state.wordIndex - 10));
-
-        els.wpmSlider.addEventListener('input', (e) => {
-            state.wpm = parseInt(e.target.value);
-            els.wpmDisplay.textContent = state.wpm;
-            updateTimeRemaining();
-        });
-
-        els.progressSlider.addEventListener('input', (e) => {
-            if (state.words.length === 0) return;
-            jumpToWord(parseInt(e.target.value));
-        });
-
-        els.chapterSelect.addEventListener('change', (e) => jumpToWord(parseInt(e.target.value)));
-
-        document.addEventListener('keydown', (e) => {
-            if (state.words.length === 0) return;
-            if (els.modal.classList.contains('active')) {
-                if (e.code === 'ArrowLeft') showModalPage(state.currentPage - 1);
-                if (e.code === 'ArrowRight') showModalPage(state.currentPage + 1);
-                if (e.code === 'Escape') closeModal();
-                return;
-            }
-            if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-            else if (e.code === 'ArrowLeft') jumpToWord(state.wordIndex - 10);
-            else if (e.code === 'ArrowRight') jumpToWord(state.wordIndex + 10);
-        });
-
-        // --- Carousel Logic (Swipe Top Widget) ---
-        let cStartX = 0;
-        let cEndX = 0;
-
-        els.mobileCarousel.addEventListener('touchstart', e => {
-            cStartX = e.changedTouches[0].screenX;
-        }, {passive: true});
-
-        els.mobileCarousel.addEventListener('touchend', e => {
-            cEndX = e.changedTouches[0].screenX;
-            handleCarouselSwipe();
-        }, {passive: true});
-
-        els.mobileCarousel.addEventListener('mousedown', e => {
-            cStartX = e.screenX;
-        });
-        
-        els.mobileCarousel.addEventListener('mouseup', e => {
-            cEndX = e.screenX;
-            handleCarouselSwipe();
-        });
-
-        function handleCarouselSwipe() {
-            if (state.isDesktop) return; // Disable swipe logic on desktop
-            const diff = cEndX - cStartX;
-            if (Math.abs(diff) > 50) {
-                if (diff < 0) {
-                    state.carouselIndex = 1; // Left swipe -> Map
-                } else {
-                    state.carouselIndex = 0; // Right swipe -> Controls
-                }
-                updateCarousel();
-            }
-        }
-
-        function updateCarousel() {
-            const offset = state.carouselIndex === 0 ? '0%' : '-50%';
-            els.carouselTrack.style.transform = `translateX(${offset})`;
-            
-            if (state.carouselIndex === 0) {
-                els.dot0.classList.add('active');
-                els.dot1.classList.remove('active');
-            } else {
-                els.dot0.classList.remove('active');
-                els.dot1.classList.add('active');
-                const wordObj = state.words[state.wordIndex];
-                if (wordObj) renderPageThumbnail(wordObj.page);
-            }
-        }
-
-        // --- Modal Logic (Gesture Support) ---
-        
-        let mTouchStartX = 0;
-        let mTouchStartY = 0;
-        let mStartDist = 0;
-        let mStartScale = 1;
-        let mScale = 1;
-        let mPanX = 0;
-        let mPanY = 0;
-        let mStartPanX = 0;
-        let mStartPanY = 0;
-        let mIsZooming = false;
-        let mIsPanning = false;
-
-        els.previewContainer.addEventListener('click', openModal);
-        els.closeModal.addEventListener('click', closeModal);
-        els.modalPrev.addEventListener('click', (e) => { e.stopPropagation(); showModalPage(state.currentPage - 1); });
-        els.modalNext.addEventListener('click', (e) => { e.stopPropagation(); showModalPage(state.currentPage + 1); });
-        
-        // Modal Background Click
-        els.modal.addEventListener('click', (e) => { 
-            // Close if clicking outside the image (the background) but not panning
-            if (e.target === els.modal && !mIsPanning && !mIsZooming) closeModal(); 
-        });
-
-        // Touch Handlers for Zoom/Pan/Swipe
-        els.modal.addEventListener('touchstart', handleModalTouchStart, {passive: false});
-        els.modal.addEventListener('touchmove', handleModalTouchMove, {passive: false});
-        els.modal.addEventListener('touchend', handleModalTouchEnd);
-
-        function handleModalTouchStart(e) {
-            if (e.touches.length === 2) {
-                // Pinch Start
-                mIsZooming = true;
-                mStartDist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-                mStartScale = mScale;
-            } else if (e.touches.length === 1) {
-                if (mScale > 1.1) {
-                    // Pan Start (only if zoomed in)
-                    mIsPanning = true;
-                    mStartPanX = e.touches[0].pageX - mPanX;
-                    mStartPanY = e.touches[0].pageY - mPanY;
-                } else {
-                    // Swipe Nav Start
-                    mTouchStartX = e.touches[0].screenX;
-                }
-            }
-        }
-
-        function handleModalTouchMove(e) {
-            if (mIsZooming && e.touches.length === 2) {
-                e.preventDefault();
-                const dist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-                const scaleChange = dist / mStartDist;
-                mScale = Math.max(1, Math.min(4, mStartScale * scaleChange));
-                updateModalTransform();
-            } else if (mIsPanning && e.touches.length === 1) {
-                e.preventDefault();
-                mPanX = e.touches[0].pageX - mStartPanX;
-                mPanY = e.touches[0].pageY - mStartPanY;
-                updateModalTransform();
-            }
-        }
-
-        function handleModalTouchEnd(e) {
-            mIsZooming = false;
-            mIsPanning = false;
-            if (e.changedTouches.length === 1 && mScale <= 1.1) {
-                // End Swipe Nav logic
-                const mTouchEndX = e.changedTouches[0].screenX;
-                const diff = mTouchEndX - mTouchStartX;
-                if (Math.abs(diff) > 50) {
-                    if (diff > 0) showModalPage(state.currentPage - 1);
-                    else showModalPage(state.currentPage + 1);
-                }
-            }
-        }
-
-        function updateModalTransform() {
-            els.modalCanvas.style.transform = `translate(${mPanX}px, ${mPanY}px) scale(${mScale})`;
-        }
-
-        function resetZoom() {
-            mScale = 1;
-            mPanX = 0;
-            mPanY = 0;
-            updateModalTransform();
-        }
-
-        function openModal() {
-            if (!state.pdfDoc) return;
-            els.modal.classList.add('active');
+        function resetState() {
+            state.mode = 'empty';
+            state.words = [];
+            state.wordIndex = 0;
+            state.pageMap = [];
+            state.pdfDoc = null;
+            state.wordSpans = [];
             stopReader();
-            showModalPage(state.currentPage);
+            
+            // UI Resets
+            els.chapterSelect.innerHTML = '<option value="" disabled selected>Load Content First</option>';
+            els.wordLeft.textContent = "Load";
+            els.wordFocus.textContent = "P";
+            els.wordRight.textContent = "DF/Text";
+            els.progressSlider.value = 0;
+            els.totalWordsMobile.textContent = "0";
+            els.totalWordsDesktop.textContent = "0";
+            els.mobileTextInput.value = "";
+            els.textViewContainer.innerHTML = "";
+            
+            // View Switching
+            updateViewsForMode();
         }
 
-        function closeModal() { 
-            els.modal.classList.remove('active'); 
+        function updateViewsForMode() {
+            // Hide all specialized views first
+            els.sourceSelection.classList.add('hidden');
+            els.pdfViewContainer.classList.add('hidden');
+            els.textViewContainer.classList.add('hidden');
+            els.mobileInputOverlay.classList.add('hidden');
+            els.rsvpLayer.classList.remove('hidden');
             
-            if (!state.words || state.words.length === 0) return;
+            // Default: Show Jump To
+            els.jumpToContainer.classList.remove('hidden');
 
-            const currentWordObj = state.words[state.wordIndex];
-            const currentWordPage = currentWordObj ? currentWordObj.page : 1;
-            
-            if (state.currentPage !== currentWordPage) {
-                const newIndex = state.pageMap[state.currentPage] || 0;
-                // Force rerender via logic
-                state.lastRenderedPage = 0; 
-                renderPageThumbnail(state.currentPage);
-                jumpToWord(newIndex);
+            if (state.mode === 'empty') {
+                if (state.isDesktop) {
+                    els.sourceSelection.classList.remove('hidden');
+                } else {
+                    els.mobileInputOverlay.classList.remove('hidden');
+                    // On mobile empty, we might hide RSVP layer to show input clearly
+                    els.rsvpLayer.classList.add('hidden');
+                }
+            } else if (state.mode === 'pdf') {
+                if (state.isDesktop || state.carouselIndex === 1) {
+                    els.pdfViewContainer.classList.remove('hidden');
+                }
+            } else if (state.mode === 'text') {
+                // Hide Jump To for text mode
+                els.jumpToContainer.classList.add('hidden');
+
+                if (state.isDesktop) {
+                    els.textViewContainer.classList.remove('hidden');
+                }
+                // On mobile text mode, we just show RSVP reader. 
+                // We don't show the full text preview on mobile slide 2 to avoid clutter?
+                // Or we could. Let's keep it simple: Text mode on mobile = just Reader.
+                // Actually, if user swipes on mobile in text mode, showing the text view is nice.
+                if (!state.isDesktop && state.carouselIndex === 1) {
+                     // For now, let's reuse textViewContainer if we want preview on mobile
+                     // But structure is complex. Let's just keep controls on slide 1 and empty slide 2 for Text mode on mobile for now?
+                     // Or better: Clone text view for mobile slide 2.
+                     // The current DOM structure shares the preview group.
+                     els.textViewContainer.classList.remove('hidden');
+                }
             }
         }
 
-        async function showModalPage(pageNum) {
-            if (pageNum < 1 || pageNum > state.pdfDoc.numPages) return;
+        // --- Desktop Selection Handlers ---
+        els.btnSelectPdf.addEventListener('click', () => els.fileInput.click());
+        els.btnSelectText.addEventListener('click', () => {
+            // Switch to Text Edit Mode
+            state.mode = 'text';
+            updateViewsForMode();
+            els.textViewContainer.focus(); // Focus editable div
+            // Add placeholder behavior via CSS or JS if needed, but basic is fine
+            els.textViewContainer.innerText = "Paste your text here...";
+        });
+
+        // --- Mobile Selection Handlers ---
+        els.btnMobileUploadPdf.addEventListener('click', () => els.fileInput.click());
+        els.btnMobileStartText.addEventListener('click', () => {
+            const text = els.mobileTextInput.value;
+            if (!text.trim()) return;
+            processRawText(text);
+        });
+
+        // --- Common Handlers ---
+        els.btnResetAll.addEventListener('click', resetState);
+        els.fileInput.addEventListener('change', handleFileUpload);
+        
+        // Text Edit Updates (Desktop)
+        els.textViewContainer.addEventListener('input', () => {
+            // Live update? Or wait for "Play"?
+            // Ideally wait for play or pause. For simplicity, we re-parse when play is hit?
+            // Actually, to update word count live, let's debounce parse.
+            clearTimeout(state.textDebounce);
+            state.textDebounce = setTimeout(() => {
+                processRawText(els.textViewContainer.innerText, true);
+            }, 1000);
+        });
+
+        // --- Data Processing ---
+
+        function processRawText(text, isLiveUpdate = false) {
+            // 1. Tokenize
+            const tokens = text.split(/\s+/).filter(w => w.length > 0);
             
-            // Reset zoom when changing page
-            resetZoom();
+            if (tokens.length === 0) return;
 
-            state.currentPage = pageNum;
+            state.words = tokens.map((t, i) => ({ text: t, page: 1, index: i }));
+            state.mode = 'text';
             
-            // Update UI Counters (In Modal and Main UI)
-            els.modalPageNum.textContent = `Page ${pageNum} / ${state.pdfDoc.numPages}`;
-            els.currentPageNum.textContent = pageNum;
+            // 2. Setup Highlighting (Only useful for Desktop/TextView)
+            if (state.isDesktop || els.textViewContainer.offsetParent !== null) {
+                renderTextSpans(tokens);
+            }
 
-            const page = await state.pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: 2.0 });
+            // 3. Update Stats
+            els.progressSlider.max = Math.max(0, state.words.length - 1);
+            const total = state.words.length.toLocaleString();
+            els.totalWordsMobile.textContent = total;
+            els.totalWordsDesktop.textContent = total;
 
-            els.modalCanvas.height = viewport.height;
-            els.modalCanvas.width = viewport.width;
-
-            const ctx = els.modalCanvas.getContext('2d');
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            if (!isLiveUpdate) {
+                jumpToWord(0);
+                updateViewsForMode();
+            }
         }
 
-        // --- Parsing & Processing ---
+        function renderTextSpans(tokens) {
+            els.textViewContainer.innerHTML = '';
+            state.wordSpans = [];
+            
+            tokens.forEach((word, idx) => {
+                const span = document.createElement('span');
+                span.textContent = word + ' ';
+                span.dataset.idx = idx;
+                els.textViewContainer.appendChild(span);
+                state.wordSpans.push(span);
+            });
+        }
 
         async function handleFileUpload(e) {
             const file = e.target.files[0];
@@ -716,53 +601,44 @@
 
             els.loader.style.display = 'flex';
             try {
-                // Reset state
-                state.words = [];
-                state.pageMap = [];
-                state.currentPage = 0; 
-                
+                resetState();
+                state.mode = 'pdf';
                 const buffer = await file.arrayBuffer();
                 state.pdfDoc = await pdfjsLib.getDocument({ data: buffer }).promise;
+                await extractPdfContent(state.pdfDoc);
                 
-                // Attempt extraction
-                await extractContent(state.pdfDoc);
-                
-                // Success path (even if partial)
                 if (state.words.length > 0) {
                     els.progressSlider.max = state.words.length - 1;
                     const total = state.words.length.toLocaleString();
                     els.totalWordsMobile.textContent = total;
                     els.totalWordsDesktop.textContent = total;
                     jumpToWord(0);
+                    updateViewsForMode();
                 } else {
                     throw new Error("No text found");
                 }
-                
                 els.loader.style.display = 'none';
             } catch (err) {
                 console.error(err);
-                // Only alert if we found absolutely nothing
-                if (state.words.length === 0) {
-                    alert('Parsing failed. File might be password protected or purely scanned images.');
-                }
+                alert('Parsing failed.');
                 els.loader.style.display = 'none';
+                resetState();
             }
         }
 
-        async function extractContent(pdf) {
+        async function extractPdfContent(pdf) {
+            // (Same extraction logic as previous correct version)
             state.words = [];
             state.pageMap = [];
             els.chapterSelect.innerHTML = '';
-
             let currentWordCount = 0;
 
             for (let i = 1; i <= pdf.numPages; i++) {
                 if (i%5===0) els.loadStatus.textContent = `Page ${i}/${pdf.numPages}...`;
                 state.pageMap[i] = currentWordCount;
-
                 try {
                     const page = await pdf.getPage(i);
-                    const viewport = page.getViewport({ scale: 1.0 }); // Needed for context height
+                    const viewport = page.getViewport({ scale: 1.0 });
                     const content = await page.getTextContent();
                     let pageWords = [];
                     let lastY = -1;
@@ -771,21 +647,15 @@
                     content.items.forEach(item => {
                         const str = item.str;
                         if (!str.trim()) return;
-                        
                         const tx = item.transform;
                         const x = tx[4]; const y = tx[5];
                         const w = item.width; const h = item.height || 12;
 
-                        // --- Page Number / Header / Footer Detection ---
-                        const isBottom = y < 60; // Approx 1 inch from bottom (72 DPI)
+                        const isBottom = y < 60; 
                         const isTop = y > (viewport.height - 60); 
                         const pageNumRegex = /^-?\s*(page\s*)?(\d+|[ivxlc]+)(\s*\/\s*\d+)?\s*-?$/i;
-                        
-                        if ((isBottom || isTop) && pageNumRegex.test(str.trim())) {
-                            return; 
-                        }
+                        if ((isBottom || isTop) && pageNumRegex.test(str.trim())) return; 
 
-                        // --- Paragraph Break Detection ---
                         if (lastY !== -1) {
                              const dist = Math.abs(y - lastY);
                              if (dist > (h * 2.5) && !lastStr.trim().endsWith('-')) {
@@ -807,25 +677,19 @@
                         lastStr = str;
                     });
 
-                    // --- Punctuation Merge ---
+                    // Punctuation Merge
                     const cleanWords = [];
                     for (let k = 0; k < pageWords.length; k++) {
                         const cur = pageWords[k];
                         if (cur.text === PARA_TOKEN) { cleanWords.push(cur); continue; }
-
-                        const isOpenQuote = /^[“‘(\[{«]$/.test(cur.text) || 
-                                            ((cur.text === '"' || cur.text === "'") && k+1 < pageWords.length && /^[a-zA-Z0-9]/.test(pageWords[k+1].text));
-                        
+                        const isOpenQuote = /^[“‘(\[{«]$/.test(cur.text) || ((cur.text === '"' || cur.text === "'") && k+1 < pageWords.length && /^[a-zA-Z0-9]/.test(pageWords[k+1].text));
                         if (isOpenQuote && k + 1 < pageWords.length && pageWords[k+1].text !== PARA_TOKEN) {
                              const next = pageWords[k+1];
                              next.text = cur.text + next.text;
-                             next.x = cur.x; 
-                             next.w += cur.w;
+                             next.x = cur.x; next.w += cur.w;
                              continue; 
                         }
-
                         const isTrailing = /^[.,;:?!…»”’')\]}]+$/.test(cur.text) || cur.text === '"' || cur.text === "'";
-                        
                         if (isTrailing && cleanWords.length > 0) {
                              const prev = cleanWords[cleanWords.length - 1];
                              if (prev.text !== PARA_TOKEN) {
@@ -838,12 +702,11 @@
                     }
                     pageWords = cleanWords;
 
-                    // --- Merge Hyphens ---
+                    // Hyphen Merge
                     const finalPageWords = [];
                     for (let j = 0; j < pageWords.length; j++) {
                         let cur = pageWords[j];
                         if (cur.text === PARA_TOKEN) { finalPageWords.push(cur); continue; }
-
                         if (cur.text.endsWith('-') && j+1 < pageWords.length) {
                             let next = pageWords[j+1];
                             if (next.text !== PARA_TOKEN && /^[a-z]/.test(next.text)) {
@@ -854,18 +717,13 @@
                         }
                         finalPageWords.push(cur);
                     }
-                    
                     state.words.push(...finalPageWords);
                     currentWordCount += finalPageWords.length;
-
-                } catch (err) {
-                    console.warn(`Skipping page ${i} due to error`, err);
-                }
+                } catch (err) {}
             }
 
             // Outline
             try {
-                els.loadStatus.textContent = 'Building Outline...';
                 const outline = await pdf.getOutline();
                 if (outline) {
                     for (const o of outline) {
@@ -874,22 +732,14 @@
                             let pIdx = -1;
                             if (typeof dest === 'string') pIdx = await pdf.getPageIndex(dest);
                             else if (Array.isArray(dest)) pIdx = await pdf.getPageIndex(dest[0]);
-                            
-                            if (pIdx !== -1) {
-                                addOption(o.title, state.pageMap[pIdx + 1] || 0);
-                            }
+                            if (pIdx !== -1) addOption(o.title, state.pageMap[pIdx + 1] || 0);
                         } catch(e){}
                     }
                 }
-            } catch (err) {
-                console.log("Outline parsing failed (non-fatal)", err);
-            }
-            
+            } catch (err) {}
             if (els.chapterSelect.options.length === 0) {
                 for (let i = 1; i <= pdf.numPages; i++) {
-                    if (state.pageMap[i] !== undefined) {
-                        addOption(`Page ${i}`, state.pageMap[i]);
-                    }
+                    if (state.pageMap[i] !== undefined) addOption(`Page ${i}`, state.pageMap[i]);
                 }
             }
         }
@@ -907,26 +757,52 @@
             updateDisplay();
             updateProgress();
             
+            // Update Visuals based on mode
             const wObj = state.words[state.wordIndex];
-            if (wObj && wObj.page !== state.currentPage) {
-                // If in Mobile Carousel Mode, we must determine if map is visible
-                // For desktop, map is always visible
+            if (!wObj) return;
+
+            if (state.mode === 'pdf') {
                 if (state.isDesktop || state.carouselIndex === 1) {
-                    renderPageThumbnail(wObj.page);
+                    if (wObj.page !== state.currentPage || state.currentPage === 0) {
+                        renderPageThumbnail(wObj.page);
+                    } else {
+                        drawHighlight();
+                    }
                 } else {
-                    state.currentPage = wObj.page;
-                    state.lastRenderedPage = 0; 
+                    if (wObj.page !== state.currentPage) {
+                        state.currentPage = wObj.page;
+                        state.lastRenderedPage = 0;
+                    }
                 }
-            } else if (state.isDesktop || state.carouselIndex === 1) {
-                drawHighlight();
+            } else if (state.mode === 'text') {
+                // Text Mode Highlight
+                highlightTextWord(state.wordIndex);
             }
         }
 
+        function highlightTextWord(idx) {
+            // Remove old
+            const old = els.textViewContainer.querySelector('.text-highlight');
+            if (old) old.classList.remove('text-highlight');
+            
+            // Add new
+            const span = state.wordSpans[idx];
+            if (span) {
+                span.classList.add('text-highlight');
+                // Scroll into view
+                const containerRect = els.textViewContainer.getBoundingClientRect();
+                const spanRect = span.getBoundingClientRect();
+                if (spanRect.top < containerRect.top || spanRect.bottom > containerRect.bottom) {
+                    span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+
+        // --- Standard Playback Logic (Shared) ---
         function togglePlay() {
             if (state.words.length === 0) return;
             state.isPlaying ? stopReader() : startReader();
         }
-
         function startReader() {
             if (state.wordIndex >= state.words.length) state.wordIndex = 0;
             state.isPlaying = true;
@@ -934,19 +810,14 @@
             els.iconPause.classList.remove('hidden');
             readerLoop();
         }
-
         function stopReader() {
             state.isPlaying = false;
             clearTimeout(state.timeoutId);
             els.iconPlay.classList.remove('hidden');
             els.iconPause.classList.add('hidden');
         }
-
         function readerLoop() {
-            if (!state.isPlaying || state.wordIndex >= state.words.length) {
-                stopReader(); return;
-            }
-
+            if (!state.isPlaying || state.wordIndex >= state.words.length) { stopReader(); return; }
             const wObj = state.words[state.wordIndex];
             const baseDelay = 60000 / state.wpm;
             let factor = 1.0;
@@ -955,43 +826,27 @@
                 showParaBreak();
                 state.wordIndex++;
                 updateProgress();
-                state.timeoutId = setTimeout(() => {
-                    hideParaBreak();
-                    readerLoop();
-                }, baseDelay * 3);
+                state.timeoutId = setTimeout(() => { hideParaBreak(); readerLoop(); }, baseDelay * 3);
                 return;
             }
 
             renderRSVPWord(wObj.text);
             updateProgress();
-
-            // Render logic optimized for mode
-            if (state.isDesktop || state.carouselIndex === 1) {
+            
+            // Update previews
+            if (state.mode === 'pdf' && (state.isDesktop || state.carouselIndex === 1)) {
                 if (wObj.page !== state.currentPage) renderPageThumbnail(wObj.page);
                 else drawHighlight();
-            } else if (wObj.page !== state.currentPage) {
-                state.currentPage = wObj.page;
-                state.lastRenderedPage = 0; 
+            } else if (state.mode === 'text' && (state.isDesktop || state.carouselIndex === 1)) {
+                highlightTextWord(state.wordIndex);
             }
 
-            // Word Length Factors
+            // Duration Factors
             const len = wObj.text.length;
-            if (len > 7) factor = 2.5;
-            else if (len < 4) factor = 0.8;
-            
-            // Punctuation Factors
-            if (/\.['"”’)]*$/.test(wObj.text)) {
-                factor += 2.0; 
-            } 
-            else if (/[?!]['"”’)]*$/.test(wObj.text)) {
-                factor += 2.0; 
-            } 
-            else if (/[;:].*$/.test(wObj.text)) {
-                factor *= 1.5;
-            } 
-            else if (/,.*$/.test(wObj.text)) {
-                factor *= 1.2;
-            }
+            if (len > 7) factor = 2.5; else if (len < 4) factor = 0.8;
+            if (/\.['"”’)]*$/.test(wObj.text) || /[?!]['"”’)]*$/.test(wObj.text)) factor += 2.0;
+            else if (/[;:].*$/.test(wObj.text)) factor *= 1.5;
+            else if (/,.*$/.test(wObj.text)) factor *= 1.2;
 
             state.wordIndex++;
             state.timeoutId = setTimeout(readerLoop, baseDelay * factor);
@@ -1000,111 +855,56 @@
         function updateDisplay() {
             const wordObj = state.words[state.wordIndex];
             if (!wordObj) return;
-            
-            if (wordObj.text === PARA_TOKEN) {
-                showParaBreak();
-            } else {
-                hideParaBreak();
-                renderRSVPWord(wordObj.text);
-            }
+            if (wordObj.text === PARA_TOKEN) showParaBreak();
+            else { hideParaBreak(); renderRSVPWord(wordObj.text); }
         }
-
         function showParaBreak() {
-            els.wordLeft.textContent = "";
-            els.wordFocus.textContent = "";
-            els.wordRight.textContent = "";
+            els.wordLeft.textContent = ""; els.wordFocus.textContent = ""; els.wordRight.textContent = "";
             els.paraIndicator.classList.remove('hidden');
         }
-
-        function hideParaBreak() {
-            els.paraIndicator.classList.add('hidden');
-        }
-
+        function hideParaBreak() { els.paraIndicator.classList.add('hidden'); }
         function renderRSVPWord(word) {
             const len = word.length;
-            
-            // Adaptive Font Sizing
-            if (state.isDesktop) {
-                // Desktop: Relaxed threshold (allow words to be longer before shrinking)
-                // Use the same sizes (38/32/27) but trigger reductions later
-                if (len > 20) {
-                    els.wordDisplay.style.fontSize = "27px"; 
-                } else if (len > 15) {
-                    els.wordDisplay.style.fontSize = "32px"; 
-                } else {
-                    els.wordDisplay.style.fontSize = "38px"; 
-                }
-            } else {
-                // Mobile: Stricter threshold (shrink sooner to fit narrow screens)
-                if (len > 12) {
-                    els.wordDisplay.style.fontSize = "27px"; 
-                } else if (len > 8) {
-                    els.wordDisplay.style.fontSize = "32px"; 
-                } else {
-                    els.wordDisplay.style.fontSize = "38px"; 
-                }
-            }
-
-            // Focus Character Logic
+            if (len > 12) els.wordDisplay.style.fontSize = "27px"; 
+            else if (len > 8) els.wordDisplay.style.fontSize = "32px"; 
+            else els.wordDisplay.style.fontSize = "38px"; 
             let focusIdx = 1; 
-            
-            if (len === 1) {
-                focusIdx = 0; 
-            } else if (len >= 7) {
-                focusIdx = 2; 
-            }
-
+            if (len === 1) focusIdx = 0; else if (len >= 7) focusIdx = 2;
             if (focusIdx >= len) focusIdx = len - 1;
-
             els.wordLeft.textContent = word.substring(0, focusIdx);
             els.wordFocus.textContent = word.charAt(focusIdx);
             els.wordRight.textContent = word.substring(focusIdx + 1);
         }
-
         function updateProgress() {
             els.progressSlider.value = state.wordIndex;
             els.progressText.textContent = `${state.wordIndex + 1}/${state.words.length}`;
             if (state.wordIndex % 5 === 0) updateTimeRemaining();
         }
-
         function updateTimeRemaining() {
             const left = state.words.length - state.wordIndex;
             const mins = Math.ceil(left / state.wpm);
             els.timeRemaining.textContent = left > 0 ? `${mins}m left` : "Done";
         }
 
-        // --- Thumbnail Logic ---
+        // --- Thumbnail & Layout Logic ---
         
         async function renderPageThumbnail(pageNum) {
-            if (!state.pdfDoc) return;
-            
-            // Check if we need to re-render due to resolution change (Mobile vs Desktop)
-            // Or just a simple page flip
+            if (!state.pdfDoc || state.mode !== 'pdf') return;
             const targetScale = state.isDesktop ? 1.5 : 0.5;
-            
-            // If page is same AND scale hasn't drastically changed (simple heuristic), just highlight
-            // We'll store lastRenderedScale to be sure
             if (pageNum === state.lastRenderedPage && state.cachedPageImage && state.lastRenderedScale === targetScale) {
                 drawHighlight(); return;
             }
-
             state.currentPage = pageNum;
             state.lastRenderedPage = pageNum;
             state.lastRenderedScale = targetScale;
-            
             els.currentPageNum.textContent = pageNum;
-
             const page = await state.pdfDoc.getPage(pageNum);
             const viewport = page.getViewport({ scale: targetScale });
-
             els.previewCanvas.height = viewport.height;
             els.previewCanvas.width = viewport.width;
-
             const ctx = els.previewCanvas.getContext('2d');
             state.currentThumbnailViewport = viewport;
-
             await page.render({ canvasContext: ctx, viewport }).promise;
-            
             createImageBitmap(els.previewCanvas).then(img => {
                 state.cachedPageImage = img;
                 drawHighlight();
@@ -1112,30 +912,88 @@
         }
 
         function drawHighlight() {
-            if (!state.cachedPageImage || !state.currentThumbnailViewport) return;
+            if (!state.cachedPageImage || !state.currentThumbnailViewport || state.mode !== 'pdf') return;
             const ctx = els.previewCanvas.getContext('2d');
-            
             ctx.clearRect(0,0, els.previewCanvas.width, els.previewCanvas.height);
             ctx.drawImage(state.cachedPageImage, 0, 0);
-
             const wObj = state.words[state.wordIndex];
             if (!wObj || wObj.text === PARA_TOKEN || wObj.page !== state.currentPage) return;
-
             const rect = state.currentThumbnailViewport.convertToViewportRectangle([
                 wObj.x, wObj.y, wObj.x + wObj.w, wObj.y + wObj.h
             ]);
-            
             const rx = Math.min(rect[0], rect[2]);
             const ry = Math.min(rect[1], rect[3]);
             const rw = Math.abs(rect[2] - rect[0]);
             const rh = Math.abs(rect[3] - rect[1]);
-
             ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
             ctx.fillRect(rx, ry, rw, rh);
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 2;
             ctx.strokeRect(rx, ry, rw, rh);
         }
+
+        function handleResize() {
+            const isDesktopNow = window.innerWidth >= 1024;
+            if (isDesktopNow !== state.isDesktop || !state.layoutInitialized) {
+                state.isDesktop = isDesktopNow;
+                state.layoutInitialized = true;
+                if (state.isDesktop) {
+                    els.desktopGrid.classList.remove('hidden');
+                    els.mobileCarousel.classList.add('hidden');
+                    els.controlsCardInner.classList.add('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
+                    els.controlsGroup.classList.remove('h-full'); 
+                    els.desktopLeft.appendChild(els.controlsGroup);
+                    els.desktopLeft.appendChild(els.readerGroup);
+                    els.desktopLeft.appendChild(els.progressGroup);
+                    els.desktopLeft.appendChild(els.playbackGroup);
+                    els.desktopRight.appendChild(els.previewGroup);
+                } else {
+                    els.desktopGrid.classList.add('hidden');
+                    els.mobileCarousel.classList.remove('hidden');
+                    els.controlsCardInner.classList.remove('bg-white', 'p-4', 'rounded-xl', 'shadow-sm', 'border', 'border-gray-100');
+                    els.controlsGroup.classList.add('h-full');
+                    els.slide1.appendChild(els.controlsGroup);
+                    els.slide2.appendChild(els.previewGroup);
+                    els.mainContainer.appendChild(els.readerGroup);
+                    els.mainContainer.appendChild(els.progressGroup);
+                    els.mainContainer.appendChild(els.playbackGroup);
+                }
+                updateViewsForMode();
+            }
+        }
+        window.addEventListener('resize', () => { clearTimeout(state.resizeTimer); state.resizeTimer = setTimeout(handleResize, 100); });
+        
+        // --- Init ---
+        init();
+
+        // Listeners for Play/Rewind/etc
+        els.btnPlayPause.addEventListener('click', togglePlay);
+        els.btnRestart.addEventListener('click', () => jumpToWord(0));
+        els.btnRewind.addEventListener('click', () => jumpToWord(state.wordIndex - 10));
+        els.wpmSlider.addEventListener('input', (e) => { state.wpm = parseInt(e.target.value); els.wpmDisplay.textContent = state.wpm; });
+        els.progressSlider.addEventListener('input', (e) => jumpToWord(parseInt(e.target.value)));
+        els.chapterSelect.addEventListener('change', (e) => jumpToWord(parseInt(e.target.value)));
+        document.addEventListener('keydown', (e) => {
+            if (state.words.length === 0) return;
+            if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+            else if (e.code === 'ArrowLeft') jumpToWord(state.wordIndex - 10);
+            else if (e.code === 'ArrowRight') jumpToWord(state.wordIndex + 10);
+        });
+
+        // Carousel Touch
+        let cStartX = 0, cEndX = 0;
+        els.mobileCarousel.addEventListener('touchstart', e => cStartX = e.changedTouches[0].screenX, {passive: true});
+        els.mobileCarousel.addEventListener('touchend', e => {
+            cEndX = e.changedTouches[0].screenX;
+            if (!state.isDesktop && Math.abs(cEndX - cStartX) > 50) {
+                state.carouselIndex = (cEndX - cStartX < 0) ? 1 : 0;
+                els.carouselTrack.style.transform = `translateX(${state.carouselIndex === 0 ? '0%' : '-50%'})`;
+                if(state.carouselIndex===0) {els.dot0.classList.add('active'); els.dot1.classList.remove('active');}
+                else {els.dot0.classList.remove('active'); els.dot1.classList.add('active'); 
+                      if(state.words.length > 0) jumpToWord(state.wordIndex); /* Trigger render */ }
+            }
+        }, {passive: true});
+
     </script>
 </body>
 </html>
