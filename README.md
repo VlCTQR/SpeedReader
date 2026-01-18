@@ -60,7 +60,7 @@ A lightweight, single-file HTML5 speed reading tool designed to help you consume
 
 
 
-1. **Open the file:** Simply double-click speed_reader.html to open it in any modern web browser (Chrome, Safari, Firefox, Edge).
+1. **Open the file:** Simply double-click index.html to open it in any modern web browser (Chrome, Safari, Firefox, Edge).
 2. **Load Content:**
     * Click **Upload PDF** to select a local file.
     * Click **Paste Text** to enter raw text.
@@ -71,7 +71,7 @@ A lightweight, single-file HTML5 speed reading tool designed to help you consume
 
 ## 🛠️ Technical Details
 
-This project is built as a **Single File Application**. All HTML, CSS, and JavaScript are contained within speed_reader.html.
+This project is built as a **Single File Application**. All HTML, CSS, and JavaScript are contained within index.html.
 
 
 
