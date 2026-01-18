@@ -73,7 +73,7 @@ A lightweight, single-file HTML5 speed reading tool designed to help you consume
 
 ## 🛠️ Technical Details
 
-This project is built as a **Single File Application**. All HTML, CSS, and JavaScript are contained within speed_reader.html.
+This project is built as a **Single File Application**. All HTML, CSS, and JavaScript are contained within index.html.
 
 
 
